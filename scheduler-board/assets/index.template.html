@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>定时任务看板</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --line:#e6e8ec; --line-soft:#f0f1f4;
+    --text:#1a1d23; --muted:#6b7280; --muted-2:#9ca3af;
+    --accent:#2563eb; --accent-soft:#eff4ff;
+    --green:#0f9d58; --green-soft:#e9f7ef;
+    --orange:#c2740a; --orange-soft:#fef4e6;
+    --red:#d92d20; --red-soft:#fdeceb;
+    --shadow:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text);
+    font:13px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font:inherit;cursor:pointer}
+  .wrap{max-width:1440px;margin:0 auto;padding:18px 22px 60px}
+
+  /* ---------- 顶栏 ---------- */
+  .top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  h1{font-size:19px;margin:0 0 3px;font-weight:650;letter-spacing:-.2px}
+  .sub{color:var(--muted);font-size:12px}
+  .sub b{color:var(--text);font-weight:600}
+  .top-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .btn{
+    border:1px solid var(--line); background:#fff; color:var(--text);
+    padding:6px 11px;border-radius:7px;font-size:12.5px;transition:.15s;
+  }
+  .btn:hover{border-color:#cfd4dc;background:#fafbfc}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:#1d4fd8}
+  .btn.ghost{background:transparent}
+  .btn.sm{padding:4px 8px;font-size:12px}
+
+  /* ---------- KPI ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 13px;box-shadow:var(--shadow)}
+  .kpi .k{color:var(--muted);font-size:11.5px;letter-spacing:.3px;display:flex;align-items:center;gap:5px}
+  .kpi .v{font-size:21px;font-weight:650;margin-top:3px;letter-spacing:-.4px;font-variant-numeric:tabular-nums}
+  .kpi .v small{font-size:12px;font-weight:500;color:var(--muted);margin-left:2px}
+  .kpi .x{font-size:11.5px;color:var(--muted-2);margin-top:1px}
+
+  /* ---------- 工具栏 ---------- */
+  .bar{
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:8px 11px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    box-shadow:var(--shadow);position:sticky;top:8px;z-index:20;
+  }
+  .seg{display:flex;background:#f3f4f6;border-radius:7px;padding:2px;gap:2px}
+  .seg button{
+    border:0;background:transparent;color:var(--muted);padding:4px 9px;border-radius:5px;font-size:12.5px;
+  }
+  .seg button.on{background:#fff;color:var(--text);box-shadow:0 1px 2px rgba(16,24,40,.09);font-weight:550}
+  .field{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px}
+  select,input[type=search]{
+    font:inherit;font-size:12.5px;color:var(--text);background:#fff;
+    border:1px solid var(--line);border-radius:7px;padding:5px 9px;outline:none;
+  }
+  select:focus,input:focus{border-color:#a9bdf5;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+  input[type=search]{width:190px}
+  .switch{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px;cursor:pointer;user-select:none}
+  .switch input{accent-color:var(--accent);margin:0}
+  .spacer{flex:1}
+
+  /* ---------- 分组 ---------- */
+  .group{
+    background:var(--card);border:1px solid var(--line);border-radius:11px;margin-bottom:11px;
+    box-shadow:var(--shadow);overflow:hidden;transition:border-color .15s,box-shadow .15s;
+  }
+  .group.dragover{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.13)}
+  .ghead{
+    display:flex;align-items:center;gap:9px;padding:9px 13px;border-bottom:1px solid var(--line-soft);
+    background:linear-gradient(180deg,#fcfcfd,#fafbfc);cursor:default;
+  }
+  .ghead .caret{
+    width:16px;height:16px;display:grid;place-items:center;color:var(--muted);cursor:pointer;
+    transition:transform .15s;flex:none;
+  }
+  .group.closed .ghead .caret{transform:rotate(-90deg)}
+  .group.closed .gbody{display:none}
+  .gname{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
+  .gmeta{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+  .gacts{display:flex;gap:4px;opacity:0;transition:opacity .12s}
+  .group:hover .gacts{opacity:1}
+  .iconbtn{
+    border:1px solid transparent;background:transparent;color:var(--muted);border-radius:6px;
+    padding:2px 6px;font-size:12px;line-height:1.5;
+  }
+  .iconbtn:hover{background:#f3f4f6;color:var(--text)}
+
+  /* ---------- 表格 ---------- */
+  .thead,.row{
+    display:grid;
+    grid-template-columns:minmax(200px,1.8fr) 96px 128px 108px 84px 84px 66px 66px 90px;
+    align-items:center;gap:10px;padding:0 13px;
+  }
+  .thead{
+    height:31px;color:var(--muted);font-size:11.5px;letter-spacing:.2px;
+    border-bottom:1px solid var(--line-soft);background:#fcfcfd;
+  }
+  .thead .th{display:flex;align-items:center;gap:3px;cursor:pointer;user-select:none;white-space:nowrap}
+  .thead .th:hover{color:var(--text)}
+  .thead .th.on{color:var(--accent);font-weight:600}
+  .thead .th .ar{font-size:9px;opacity:.85}
+  .thead .th.num{justify-content:flex-end}
+  .thead .th.nosort{cursor:default}
+
+  .row{
+    height:42px;border-bottom:1px solid var(--line-soft);cursor:pointer;transition:background .1s;
+  }
+  .row:last-child{border-bottom:0}
+  .row:hover{background:#fafbff}
+  .row.dragging{opacity:.4}
+  .row .name{display:flex;flex-direction:column;min-width:0;gap:0px}
+  .row .name .t{font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
+  .row .name .m{color:var(--muted-2);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cell{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .cell.num{text-align:right}
+  .cell.strong{color:var(--text);font-weight:550}
+  .cell .rel{display:block;color:#b6bbc4;font-size:10.5px;line-height:1.15}
+  .sched-pill{
+    display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    background:#f2f3f5;color:#5b6270;font-size:11px;font-weight:550;line-height:1.7;
+    padding:1px 7px;border-radius:20px;vertical-align:middle;
+  }
+  .pill{
+    display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:20px;
+    font-size:11px;font-weight:550;line-height:1.7;white-space:nowrap;
+  }
+  .pill.gray{background:#f2f3f5;color:#5b6270}
+  .pill.blue{background:var(--accent-soft);color:#1d4fd8}
+  .pill.green{background:var(--green-soft);color:#0a7c46}
+  .pill.orange{background:var(--orange-soft);color:var(--orange)}
+  .pill.red{background:var(--red-soft);color:var(--red)}
+  .pill.purple{background:#f4f0ff;color:#6b3fd4}
+  .tag-del{background:#f2f3f5;color:#8b919c;font-size:10px;padding:0 5px;border-radius:4px}
+  .warn-dot{width:6px;height:6px;border-radius:50%;background:var(--orange);flex:none}
+  .run-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;flex:none;box-shadow:0 0 0 3px rgba(34,197,94,.16)}
+  .dur-hot{color:var(--red);font-weight:600}
+  .dur-warm{color:var(--orange);font-weight:600}
+  .empty{padding:26px 13px;color:var(--muted-2);text-align:center;font-size:12.5px}
+
+  /* ---------- 抽屉 ---------- */
+  .mask{
+    position:fixed;inset:0;background:rgba(17,24,39,.34);opacity:0;pointer-events:none;
+    transition:opacity .18s;z-index:60;
+  }
+  .mask.on{opacity:1;pointer-events:auto}
+  .drawer{
+    position:fixed;top:0;right:0;height:100vh;width:min(560px,94vw);background:#fff;z-index:70;
+    transform:translateX(102%);transition:transform .22s cubic-bezier(.3,.8,.4,1);
+    box-shadow:-14px 0 40px rgba(16,24,40,.14);display:flex;flex-direction:column;
+  }
+  .drawer.on{transform:none}
+  .dhead{padding:16px 20px 13px;border-bottom:1px solid var(--line-soft)}
+  .dhead h2{margin:0 0 5px;font-size:15.5px;font-weight:650;line-height:1.4}
+  .dhead .metas{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+  .dbody{overflow:auto;padding:15px 20px 40px;flex:1}
+  .dsec{margin-bottom:20px}
+  .dsec h3{
+    margin:0 0 9px;font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.4px;text-transform:uppercase;
+    display:flex;align-items:center;gap:8px;
+  }
+  .dsec h3::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .stat{background:#fafbfc;border:1px solid var(--line-soft);border-radius:8px;padding:8px 10px}
+  .stat .k{font-size:11px;color:var(--muted)}
+  .stat .v{font-size:15px;font-weight:640;margin-top:1px;font-variant-numeric:tabular-nums}
+  table.mini{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.mini th{
+    text-align:left;color:var(--muted);font-weight:500;font-size:11.5px;padding:6px 8px;
+    border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;
+  }
+  table.mini td{padding:6px 8px;border-bottom:1px solid var(--line-soft);font-variant-numeric:tabular-nums}
+  table.mini tr:last-child td{border-bottom:0}
+  table.mini td.r{text-align:right}
+  .chartbox{background:#fafbfc;border:1px solid var(--line-soft);border-radius:8px;padding:10px 8px 4px}
+  .axis{fill:var(--muted-2);font-size:9.5px}
+  .kv{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px dashed var(--line-soft);font-size:12.5px}
+  .kv:last-child{border-bottom:0}
+  .kv .k{color:var(--muted);flex:none}
+  .kv .v{text-align:right;word-break:break-all;font-variant-numeric:tabular-nums}
+  .close-x{
+    position:absolute;top:12px;right:14px;border:0;background:#f3f4f6;width:28px;height:28px;
+    border-radius:50%;color:#4b5563;font-size:15px;line-height:1;
+  }
+  .close-x:hover{background:#e9ebef}
+
+  /* ---------- modal ---------- */
+  .modal-mask{position:fixed;inset:0;background:rgba(17,24,39,.36);z-index:90;display:none;place-items:center;padding:20px}
+  .modal-mask.on{display:grid}
+  .modal{background:#fff;border-radius:12px;padding:18px 20px;width:min(380px,100%);box-shadow:0 20px 50px rgba(16,24,40,.22)}
+  .modal h3{margin:0 0 4px;font-size:15px}
+  .modal p{margin:0 0 12px;color:var(--muted);font-size:12.5px}
+  .modal input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13px;outline:none}
+  .modal input:focus{border-color:#a9bdf5;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+  .modal .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);background:#111827;color:#fff;
+    padding:9px 16px;border-radius:8px;font-size:12.5px;opacity:0;transition:.22s;z-index:120;pointer-events:none;
+  }
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+  .drop-hint{color:var(--muted-2);font-size:11.5px;padding:2px 0 0}
+
+  @media (max-width:1180px){
+    .kpis{grid-template-columns:repeat(3,1fr)}
+    .thead,.row{grid-template-columns:minmax(176px,1.6fr) 88px 120px 100px 76px 76px 58px 60px 80px}
+  }
+  @media (max-width:860px){
+    .wrap{padding:14px 12px 50px}
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .group{overflow-x:auto}
+    .thead,.row{min-width:880px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div>
+      <h1>定时任务看板</h1>
+      <div class="sub" id="sub"></div>
+    </div>
+    <div class="top-right">
+      <input type="search" id="q" placeholder="搜索任务名 / 目录…" />
+      <button class="btn sm" id="btnImport" title="导入分组配置">导入分组</button>
+      <button class="btn sm" id="btnExport" title="导出分组配置">导出分组</button>
+      <button class="btn primary sm" id="btnRefresh" title="重新读取 WorkBuddy 数据库">刷新数据</button>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="bar">
+    <div class="field">
+      <span>分组</span>
+      <div class="seg" id="segView">
+        <button data-view="custom" class="on">自定义</button>
+        <button data-view="time">按时段</button>
+        <button data-view="cwd">按目录</button>
+        <button data-view="freq">按周期</button>
+        <button data-view="none">不分组</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span>排序</span>
+      <select id="sortKey">
+        <option value="nextRunAt">下次执行时间</option>
+        <option value="lastRunAt">上次执行时间</option>
+        <option value="avg">平均耗时</option>
+        <option value="lastDur">最近一次耗时</option>
+        <option value="max">最长耗时</option>
+        <option value="total">累计耗时</option>
+        <option value="count">执行次数</option>
+        <option value="name">任务名</option>
+      </select>
+      <button class="btn sm" id="btnDir" title="切换升降序">↑ 升序</button>
+    </div>
+
+    <div class="field">
+      <span>筛选</span>
+      <select id="filter">
+        <option value="all">全部任务</option>
+        <option value="timeout">仅超时</option>
+        <option value="failed">仅最近失败</option>
+        <option value="norun">仅未执行过</option>
+        <option value="active">仅启用中</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <span>超时阈值</span>
+      <select id="threshold">
+        <option value="180">3 分钟</option>
+        <option value="300">5 分钟</option>
+        <option value="600" selected>10 分钟</option>
+        <option value="1200">20 分钟</option>
+        <option value="1800">30 分钟</option>
+      </select>
+    </div>
+
+    <label class="switch"><input type="checkbox" id="showDeleted" /> 显示已删除</label>
+    <div class="spacer"></div>
+    <button class="btn sm" id="btnCsv" title="导出当前视图的耗时统计为 CSV">导出 CSV</button>
+    <button class="btn sm" id="btnNewGroup">＋ 新建分组</button>
+  </div>
+
+  <div id="board"></div>
+  <div class="drop-hint" id="hint"></div>
+</div>
+
+<div class="mask" id="mask"></div>
+<div class="drawer" id="drawer">
+  <button class="close-x" id="btnCloseDrawer">✕</button>
+  <div class="dhead" id="dhead"></div>
+  <div class="dbody" id="dbody"></div>
+</div>
+
+<div class="modal-mask" id="modalMask">
+  <div class="modal">
+    <h3 id="mTitle">新建分组</h3>
+    <p id="mDesc"></p>
+    <input id="mInput" />
+    <div class="acts">
+      <button class="btn" id="mCancel">取消</button>
+      <button class="btn primary" id="mOk">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/*__DATA__*/
+</script>
+<script>
+(function () {
+  "use strict";
+
+  var DATA = window.__DATA__ || { tasks: [], totals: {} };
+  var LS = {
+    groups: "scheduler-board:groups",
+    order: "scheduler-board:order",
+    closed: "scheduler-board:closed",
+    pref: "scheduler-board:pref"
+  };
+  var UNGROUPED = "未分组";
+
+  var state = {
+    view: "custom",
+    sortKey: "nextRunAt",
+    dir: 1,
+    q: "",
+    filter: "all",
+    showDeleted: false,
+    threshold: 600
+  };
+
+  var customGroups = loadJSON(LS.groups, {});   // taskId -> groupName
+  var groupOrder = loadJSON(LS.order, []);      // [groupName]
+  var closedGroups = loadJSON(LS.closed, {});   // groupName -> true
+  var pref = loadJSON(LS.pref, {});
+  Object.keys(pref).forEach(function (k) { if (k in state) state[k] = pref[k]; });
+
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  };
+
+  /* ---------------- 工具 ---------------- */
+  function loadJSON(key, dflt) {
+    try { var s = localStorage.getItem(key); return s ? JSON.parse(s) : dflt; }
+    catch (e) { return dflt; }
+  }
+  function saveJSON(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+  }
+  function toast(msg) {
+    var t = $("toast");
+    t.textContent = msg; t.classList.add("on");
+    clearTimeout(t._tm); t._tm = setTimeout(function () { t.classList.remove("on"); }, 1900);
+  }
+
+  function fmtDur(sec) {
+    if (sec == null) return "—";
+    if (sec < 1) return sec.toFixed(1) + "s";
+    if (sec < 60) return Math.round(sec) + " 秒";
+    if (sec < 3600) {
+      var m = Math.floor(sec / 60), s = Math.round(sec % 60);
+      return s ? m + " 分 " + s + " 秒" : m + " 分钟";
+    }
+    var h = Math.floor(sec / 3600), mm = Math.round((sec % 3600) / 60);
+    return mm ? h + " 小时 " + mm + " 分" : h + " 小时";
+  }
+  function fmtDurShort(sec) {
+    if (sec == null) return "—";
+    if (sec < 60) return Math.round(sec) + "s";
+    if (sec < 3600) return (sec / 60).toFixed(sec < 600 ? 1 : 0) + "m";
+    return (sec / 3600).toFixed(1) + "h";
+  }
+  function pad(n) { return n < 10 ? "0" + n : "" + n; }
+  function fmtTime(ms) {
+    if (!ms) return "—";
+    var d = new Date(ms);
+    return pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+  function fmtFull(ms) {
+    if (!ms) return "—";
+    var d = new Date(ms);
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + " " +
+      pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+  }
+  function relTime(ms) {
+    if (!ms) return "";
+    var diff = ms - Date.now();
+    var abs = Math.abs(diff), txt;
+    if (abs < 60000) txt = "不到 1 分钟";
+    else if (abs < 3600000) txt = Math.round(abs / 60000) + " 分钟";
+    else if (abs < 86400000) txt = Math.round(abs / 3600000) + " 小时";
+    else txt = Math.round(abs / 86400000) + " 天";
+    return diff >= 0 ? txt + "后" : "已过 " + txt;
+  }
+  function weekdayOf(ms) { return ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date(ms).getDay()]; }
+
+  /* ---------------- 统计派生 ---------------- */
+  function isTimeout(task) {
+    return task.stats.lastDur != null && task.stats.lastDur >= state.threshold;
+  }
+  function durClass(sec) {
+    if (sec == null) return "";
+    if (sec >= state.threshold * 2) return "dur-hot";
+    if (sec >= state.threshold) return "dur-warm";
+    return "";
+  }
+  function shortSched(txt) {
+    var s = String(txt || "");
+    var m;
+    if ((m = s.match(/每小时|每 \d+ 小时/))) return m[0];
+    if ((m = s.match(/^每 \d+ 天/))) return m[0];
+    if (/^每天/.test(s)) return "每天";
+    if ((m = s.match(/^每 \d+ 周/))) return m[0];
+    if (/^每周/.test(s)) return "每周";
+    if ((m = s.match(/^每[月年]/))) return m[0];
+    if (/^单次/.test(s)) return "单次";
+    return s || "—";
+  }
+
+  /* ---------------- 分组 ---------------- */
+  function groupNameOf(task) {
+    if (state.view === "custom") {
+      var g = customGroups[task.id];
+      return g && g.trim() ? g : UNGROUPED;
+    }
+    if (state.view === "cwd") return task.cwdName || "未指定目录";
+    if (state.view === "freq") {
+      var t = task.scheduleText || "";
+      if (/^每 \d+ 小时|^每小时/.test(t)) return "每 N 小时";
+      if (/^每天/.test(t)) return "每天";
+      if (/^每周/.test(t)) return "每周";
+      if (/^每月|^每年/.test(t)) return "每月 / 每年";
+      if (/^单次/.test(t)) return "单次";
+      return "其他";
+    }
+    if (state.view === "time") {
+      var ts = task.nextRunAt || task.lastRunAt;
+      if (!ts) return "无计划时间";
+      var h = new Date(ts).getHours();
+      if (h < 6) return "凌晨 00–05";
+      if (h < 9) return "早上 06–08";
+      if (h < 12) return "上午 09–11";
+      if (h < 14) return "中午 12–13";
+      if (h < 18) return "下午 14–17";
+      if (h < 23) return "晚上 18–22";
+      return "深夜 23";
+    }
+    return "全部任务";
+  }
+  var TIME_ORDER = ["凌晨 00–05", "早上 06–08", "上午 09–11", "中午 12–13", "下午 14–17", "晚上 18–22", "深夜 23", "无计划时间"];
+  var FREQ_ORDER = ["每 N 小时", "每天", "每周", "每月 / 每年", "单次", "其他"];
+
+  function visibleTasks() {
+    var q = state.q.trim().toLowerCase();
+    return DATA.tasks.filter(function (t) {
+      if (!state.showDeleted && t.deleted) return false;
+      if (state.filter === "timeout" && !isTimeout(t)) return false;
+      if (state.filter === "failed" && t.stats.lastSuccess !== false) return false;
+      if (state.filter === "norun" && t.stats.count > 0) return false;
+      if (state.filter === "active" && (t.status !== "ACTIVE" || t.deleted)) return false;
+      if (q) {
+        var hay = (t.name + " " + t.cwd + " " + t.cwdName + " " + t.scheduleText).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  function cmp(a, b) {
+    var k = state.sortKey, va, vb;
+    if (k === "name") { return a.name.localeCompare(b.name, "zh") * state.dir; }
+    if (k === "avg" || k === "max" || k === "total" || k === "count" || k === "lastDur" || k === "median") {
+      var na = a.stats.count === 0, nb = b.stats.count === 0;
+      if (na !== nb) return na ? 1 : -1;          // 从未执行的任务永远沉底
+      va = a.stats[k] == null ? 0 : a.stats[k];
+      vb = b.stats[k] == null ? 0 : b.stats[k];
+    } else {
+      va = a[k]; vb = b[k];
+      if (!va && !vb) return 0;
+      if (!va) return 1;      // 空值永远沉底
+      if (!vb) return -1;
+    }
+    return (va - vb) * state.dir || a.name.localeCompare(b.name, "zh");
+  }
+
+  /* ---------------- 渲染 ---------------- */
+  function renderKPI(tasks) {
+    var runs = tasks.reduce(function (s, t) { return s + t.stats.count; }, 0);
+    var totalSec = tasks.reduce(function (s, t) { return s + t.stats.total; }, 0);
+    var withRuns = tasks.filter(function (t) { return t.stats.count > 0; }).length;
+    var skips = tasks.reduce(function (s, t) { return s + (t.stats.skipCount || 0); }, 0);
+    var warns = tasks.filter(isTimeout).length;
+    var fails = tasks.filter(function (t) { return t.stats.lastSuccess === false; }).length;
+    var deletedCount = DATA.tasks.filter(function (t) { return t.deleted; }).length;
+    var next = tasks.filter(function (t) { return t.nextRunAt && t.nextRunAt > Date.now() && !t.deleted; })
+      .sort(function (a, b) { return a.nextRunAt - b.nextRunAt; })[0];
+
+    var cards = [
+      { k: "任务总数", v: tasks.length, x: "已删除 " + deletedCount + " 个" + (state.showDeleted ? "（当前显示）" : "（默认隐藏）") },
+      { k: "累计执行", v: runs, x: "覆盖 " + withRuns + " 个任务" + (skips ? " · 撞锁跳过 " + skips + " 次" : "") },
+      { k: "累计耗时", v: (totalSec / 3600).toFixed(1), unit: "小时", x: runs ? "平均每次 " + fmtDur(totalSec / runs) : "暂无执行" },
+      { k: "平均单次耗时", v: runs ? fmtDurShort(totalSec / runs) : "—", x: "超阈值 " + warns + " 个 · 最近失败 " + fails + " 个" },
+      { k: "下次执行", v: next ? fmtTime(next.nextRunAt) : "—", x: next ? esc(next.name.slice(0, 18)) + " · " + relTime(next.nextRunAt) : "无待执行任务" }
+    ];
+    $("kpis").innerHTML = cards.map(function (c) {
+      return '<div class="kpi"><div class="k">' + esc(c.k) + "</div>" +
+        '<div class="v">' + c.v + (c.unit ? "<small>" + c.unit + "</small>" : "") + "</div>" +
+        '<div class="x">' + c.x + "</div></div>";
+    }).join("");
+  }
+
+  function sparkline(runs, threshold) {
+    if (!runs || runs.length < 2) return '<span class="cell" style="color:#c3c8d0">—</span>';
+    var vals = runs.slice(-14).map(function (r) { return r.dur; });
+    var w = 88, h = 22, max = Math.max.apply(null, vals) || 1, min = Math.min.apply(null, vals);
+    var span = Math.max(max - min, 1);
+    var pts = vals.map(function (v, i) {
+      var x = (i / (vals.length - 1)) * (w - 4) + 2;
+      var y = h - 3 - ((v - min) / span) * (h - 7);
+      return [x, y];
+    });
+    var path = pts.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ");
+    var area = path + " L" + (w - 2) + " " + h + " L2 " + h + " Z";
+    var last = vals[vals.length - 1];
+    var color = last >= threshold * 2 ? "#d92d20" : last >= threshold ? "#c2740a" : "#2563eb";
+    var lp = pts[pts.length - 1];
+    return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + " " + h + '" style="overflow:visible">' +
+      '<path d="' + area + '" fill="' + color + '" opacity=".08"/>' +
+      '<path d="' + path + '" fill="none" stroke="' + color + '" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>' +
+      '<circle cx="' + lp[0].toFixed(1) + '" cy="' + lp[1].toFixed(1) + '" r="2" fill="' + color + '"/>' +
+      "</svg>";
+  }
+
+  function rowHTML(t) {
+    var st = t.stats;
+    var nameBadges = "";
+    if (t.deleted) nameBadges += '<span class="tag-del">已删除</span>';
+    if (t.running) nameBadges += '<span class="run-dot" title="正在运行"></span>';
+    if (isTimeout(t)) nameBadges += '<span class="warn-dot" title="最近一次执行超阈值"></span>';
+    if (t.status !== "ACTIVE" && !t.deleted) nameBadges += '<span class="tag-del">已暂停</span>';
+
+    var nextTxt = t.nextRunAt ? fmtTime(t.nextRunAt) : "—";
+    var nextSub = t.nextRunAt ? relTime(t.nextRunAt) : "";
+    var lastTxt = t.lastRunAt ? fmtTime(t.lastRunAt) : "未执行";
+
+    var succTxt = st.successRate == null ? "—" : st.successRate.toFixed(0) + "%";
+    var succPill = st.successRate == null ? "gray" : st.successRate >= 99 ? "green" : st.successRate >= 80 ? "orange" : "red";
+
+    return '<div class="row" data-id="' + t.id + '" draggable="' + (state.view === "custom") + '">' +
+      '<div class="name"><div class="t">' + esc(t.name) + nameBadges + "</div>" +
+      '<div class="m">' + esc(t.scheduleText) + " · " + esc(t.cwdName) + "</div></div>" +
+      '<div class="cell"><span class="sched-pill" title="' + esc(t.scheduleText) + '">' + esc(shortSched(t.scheduleText)) + "</span></div>" +
+      '<div class="cell strong">' + nextTxt + (nextSub ? '<span class="rel">' + nextSub + "</span>" : "") + "</div>" +
+      '<div class="cell">' + lastTxt + "</div>" +
+      '<div class="cell num strong ' + durClass(st.avg) + '">' + (st.count ? fmtDurShort(st.avg) : "—") + "</div>" +
+      '<div class="cell num ' + durClass(st.lastDur) + '">' + (st.lastDur != null ? fmtDurShort(st.lastDur) : "—") + "</div>" +
+      '<div class="cell num" title="' + (st.skipCount ? st.skipCount + " 次因「任务已在运行」被跳过，不计入耗时" : "") + '">' + st.count +
+        (st.skipCount ? '<span style="color:#c3c8d0;font-size:10.5px">+' + st.skipCount + "跳</span>" : "") + "</div>" +
+      '<div class="cell num"><span class="pill ' + succPill + '">' + succTxt + "</span></div>" +
+      "<div>" + sparkline(t.runs.filter(function (r) { return !r.skipped; }), state.threshold) + "</div>" +
+      "</div>";
+  }
+
+  function groupSort(names) {
+    if (state.view === "time") {
+      return names.sort(function (a, b) {
+        var ia = TIME_ORDER.indexOf(a), ib = TIME_ORDER.indexOf(b);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      });
+    }
+    if (state.view === "freq") {
+      return names.sort(function (a, b) {
+        var ia = FREQ_ORDER.indexOf(a), ib = FREQ_ORDER.indexOf(b);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      });
+    }
+    if (state.view === "custom") {
+      var ord = groupOrder.slice();
+      return names.sort(function (a, b) {
+        if (a === UNGROUPED) return 1;
+        if (b === UNGROUPED) return -1;
+        var ia = ord.indexOf(a), ib = ord.indexOf(b);
+        if (ia < 0 && ib < 0) return a.localeCompare(b, "zh");
+        if (ia < 0) return 1;
+        if (ib < 0) return -1;
+        return ia - ib;
+      });
+    }
+    return names.sort(function (a, b) { return a.localeCompare(b, "zh"); });
+  }
+
+  function render() {
+    var tasks = visibleTasks();
+    renderKPI(tasks);
+
+    var buckets = {};
+    tasks.forEach(function (t) {
+      var g = groupNameOf(t);
+      (buckets[g] = buckets[g] || []).push(t);
+    });
+    // 自定义视图下，空分组也要显示出来（否则建完组看不到它）
+    if (state.view === "custom") {
+      groupOrder.forEach(function (g) { if (!buckets[g]) buckets[g] = []; });
+      if (!buckets[UNGROUPED]) buckets[UNGROUPED] = [];
+    }
+    var names = groupSort(Object.keys(buckets));
+
+    if (!names.length) {
+      $("board").innerHTML = '<div class="group"><div class="empty">没有匹配的任务，试试清空搜索或切换筛选。</div></div>';
+      $("hint").textContent = "";
+      return;
+    }
+
+    var html = names.map(function (g) {
+      var list = buckets[g].sort(cmp);
+      var sec = list.reduce(function (s, t) { return s + t.stats.total; }, 0);
+      var cnt = list.reduce(function (s, t) { return s + t.stats.count; }, 0);
+      var closed = closedGroups[g] ? " closed" : "";
+      var acts = state.view === "custom"
+        ? '<button class="iconbtn" data-act="rename" data-g="' + esc(g) + '">重命名</button>' +
+          (g !== UNGROUPED ? '<button class="iconbtn" data-act="delgroup" data-g="' + esc(g) + '">解散</button>' : "")
+        : "";
+      return '<div class="group' + closed + '" data-group="' + esc(g) + '">' +
+        '<div class="ghead">' +
+          '<div class="caret" data-act="toggle" data-g="' + esc(g) + '">▾</div>' +
+          '<div class="gname"><span class="dot"></span>' + esc(g) + "</div>" +
+          '<div class="gmeta">' + (list.length
+            ? list.length + " 个任务 · 执行 " + cnt + " 次 · 累计 " + fmtDur(sec)
+            : "空分组 · 等待加入任务") + "</div>" +
+          '<div class="spacer"></div>' +
+          '<div class="gacts">' + acts + "</div>" +
+        "</div>" +
+        '<div class="gbody">' +
+          '<div class="thead">' +
+            th("任务 / 周期", "name", "") +
+            th("调度", null, "") +
+            th("下次执行", "nextRunAt", "num") +
+            th("上次执行", "lastRunAt", "") +
+            th("平均耗时", "avg", "num") +
+            th("最近耗时", "lastDur", "num") +
+            th("执行次数", "count", "num") +
+            th("成功率", null, "num") +
+            '<div class="th nosort">耗时趋势</div>' +
+          "</div>" +
+          (list.length ? list.map(rowHTML).join("")
+            : '<div class="empty">把任务行拖到这里即可归组，也可以在任务详情里选择分组。</div>') +
+        "</div></div>";
+    }).join("");
+
+    $("board").innerHTML = html;
+    $("hint").textContent = state.view === "custom"
+      ? "提示：拖拽任务行到其他分组区块即可归档；分组配置自动保存在本机。"
+      : "";
+    bindRowEvents();
+  }
+
+  function th(label, key, cls) {
+    if (!key) return '<div class="th nosort ' + cls + '">' + label + "</div>";
+    var on = state.sortKey === key;
+    var ar = on ? (state.dir > 0 ? "▲" : "▼") : "";
+    return '<div class="th ' + cls + (on ? " on" : "") + '" data-sort="' + key + '">' + label +
+      '<span class="ar">' + ar + "</span></div>";
+  }
+
+  /* ---------------- 抽屉 ---------------- */
+  function openDrawer(id) {
+    var t = DATA.tasks.filter(function (x) { return x.id === id; })[0];
+    if (!t) return;
+    var st = t.stats;
+
+    $("dhead").innerHTML =
+      "<h2>" + esc(t.name) + "</h2>" +
+      '<div class="metas">' +
+        '<span class="pill ' + (t.status === "ACTIVE" && !t.deleted ? "green" : "gray") + '">' +
+          (t.deleted ? "已删除" : t.status === "ACTIVE" ? "启用中" : "已暂停") + "</span>" +
+        '<span class="pill blue">' + esc(t.scheduleText) + "</span>" +
+        (st.lastSuccess === false ? '<span class="pill red">最近一次失败</span>' : "") +
+        (isTimeout(t) ? '<span class="pill orange">最近耗时超阈值</span>' : "") +
+      "</div>";
+
+    var runsNewest = t.runs.slice().reverse();
+    var rowsHTML = runsNewest.length
+      ? runsNewest.map(function (r) {
+          var res = r.skipped ? '<span class="pill gray">跳过</span>'
+            : r.success ? '<span class="pill green">成功</span>'
+            : '<span class="pill red">失败</span>';
+          return "<tr" + (r.skipped ? ' style="color:#b0b5bf"' : "") + "><td>" + fmtFull(r.start) + "</td>" +
+            '<td class="r ' + (r.skipped ? "" : durClass(r.dur)) + '">' + (r.skipped ? "—" : fmtDur(r.dur)) + "</td>" +
+            '<td class="r">' + res + "</td></tr>";
+        }).join("")
+      : '<tr><td colspan="3" style="color:#9ca3af;text-align:center;padding:14px">暂无执行记录</td></tr>';
+
+    // 分组选择
+    var has = st.count > 0;
+    var f = function (v) { return has ? fmtDurShort(v) : "—"; };
+    var allGroups = groupOrder.slice();
+    Object.keys(customGroups).forEach(function (k) {
+      var g = customGroups[k];
+      if (g && allGroups.indexOf(g) < 0) allGroups.push(g);
+    });
+    var curGroup = customGroups[t.id] || UNGROUPED;
+    var opts = [UNGROUPED].concat(allGroups.filter(function (g) { return g !== UNGROUPED; }))
+      .map(function (g) { return '<option value="' + esc(g) + '"' + (g === curGroup ? " selected" : "") + ">" + esc(g) + "</option>"; })
+      .join("");
+
+    $("dbody").innerHTML =
+      '<div class="dsec"><h3>执行耗时统计</h3><div class="grid4">' +
+        stat("执行次数", st.count) +
+        stat("平均", f(st.avg)) +
+        stat("中位", f(st.median)) +
+        stat("P90", f(st.p90)) +
+        stat("最长", f(st.max)) +
+        stat("最短", f(st.min)) +
+        stat("累计", f(st.total)) +
+        stat("成功率", st.successRate == null ? "—" : st.successRate.toFixed(0) + "%") +
+      "</div>" +
+      (has ? "" : '<div style="color:#9ca3af;font-size:12px;margin-top:8px">该任务还没有执行记录，首次运行后这里会显示耗时分布。</div>') +
+      (st.skipCount ? '<div style="color:#8b919c;font-size:12px;margin-top:8px">另有 <b>' + st.skipCount + "</b> 次调度因「任务已在运行」被跳过，未计入以上耗时统计。</div>" : "") +
+      (st.failCount ? '<div style="color:#d92d20;font-size:12px;margin-top:4px">其中 ' + st.failCount + " 次真正执行失败。</div>" : "") +
+      "</div>" +
+      '<div class="dsec"><h3>耗时趋势（最近 ' + Math.min(24, st.count) + " 次）</h3>" +
+        '<div class="chartbox">' + lineChart(t.runs.filter(function (r) { return !r.skipped; }).slice(-24), state.threshold) + "</div></div>" +
+      '<div class="dsec"><h3>任务信息</h3>' +
+        kv("任务 ID", '<code style="font-size:11.5px">' + esc(t.id) + "</code>") +
+        kv("调度表达式", esc(t.rrule || "—")) +
+        kv("下次执行", t.nextRunAt ? fmtFull(t.nextRunAt) + "（" + relTime(t.nextRunAt) + "）" : "—") +
+        kv("上次执行", fmtFull(t.lastRunAt) + (t.lastRunAt ? "（" + weekdayOf(t.lastRunAt) + "）" : "")) +
+        kv("首次执行", fmtFull(st.firstRunAt)) +
+        kv("工作目录", esc(t.cwd || "—")) +
+        (t.lastError ? kv("最近错误", '<span style="color:#d92d20">' + esc(t.lastError) + "</span>") : "") +
+      "</div>" +
+      '<div class="dsec"><h3>分组</h3>' +
+        '<select id="dGroup" style="width:100%">' + opts + "</select>" +
+        '<div style="color:#9ca3af;font-size:11.5px;margin-top:6px">归组后可在「自定义」视图里看到，配置保存在本机。</div>' +
+      "</div>" +
+      '<div class="dsec"><h3>执行记录</h3><table class="mini"><thead><tr><th>开始时间</th><th class="r">耗时</th><th class="r">结果</th></tr></thead><tbody>' +
+        rowsHTML + "</tbody></table></div>";
+
+    $("dGroup").addEventListener("change", function () {
+      var g = this.value;
+      if (g === UNGROUPED) delete customGroups[t.id];
+      else {
+        customGroups[t.id] = g;
+        if (groupOrder.indexOf(g) < 0) groupOrder.push(g);
+      }
+      saveJSON(LS.groups, customGroups); saveJSON(LS.order, groupOrder);
+      render(); toast("已移动到「" + g + "」");
+    });
+
+    $("mask").classList.add("on");
+    $("drawer").classList.add("on");
+  }
+  function stat(k, v) { return '<div class="stat"><div class="k">' + k + '</div><div class="v">' + v + "</div></div>"; }
+  function kv(k, v) { return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>"; }
+
+  function lineChart(runs, threshold) {
+    if (!runs || runs.length < 2) return '<div style="color:#9ca3af;font-size:12px;padding:16px 6px;text-align:center">执行次数不足，暂无法绘制趋势</div>';
+    var W = 500, H = 150, padL = 34, padR = 8, padT = 10, padB = 20;
+    var vals = runs.map(function (r) { return r.dur; });
+    var maxV = Math.max.apply(null, vals);
+    var top = Math.max(maxV * 1.15, 1);
+    var iw = W - padL - padR, ih = H - padT - padB;
+    function X(i) { return padL + (runs.length === 1 ? iw / 2 : (i / (runs.length - 1)) * iw); }
+    function Y(v) { return padT + ih - (v / top) * ih; }
+
+    var pts = runs.map(function (r, i) { return [X(i), Y(r.dur)]; });
+    var path = pts.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ");
+    var area = path + " L" + X(runs.length - 1).toFixed(1) + " " + (padT + ih) + " L" + padL + " " + (padT + ih) + " Z";
+
+    var grid = "", ticks = 3;
+    for (var i = 0; i <= ticks; i++) {
+      var v = (top / ticks) * i, y = Y(v);
+      grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + y.toFixed(1) + '" stroke="#eceef2" stroke-width="1"/>';
+      grid += '<text x="' + (padL - 5) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end" class="axis">' + fmtDurShort(v) + "</text>";
+    }
+    var thrLine = "";
+    if (threshold && threshold < top) {
+      thrLine = '<line x1="' + padL + '" y1="' + Y(threshold).toFixed(1) + '" x2="' + (W - padR) + '" y2="' + Y(threshold).toFixed(1) +
+        '" stroke="#e8a33d" stroke-width="1" stroke-dasharray="3 3"/>' +
+        '<text x="' + (W - padR) + '" y="' + (Y(threshold) - 3).toFixed(1) + '" text-anchor="end" class="axis" fill="#c2740a">阈值</text>';
+    }
+    var dots = runs.map(function (r, i) {
+      var c = r.success ? "#2563eb" : "#d92d20";
+      return '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(r.dur).toFixed(1) + '" r="2.4" fill="' + c + '"><title>' +
+        fmtFull(r.start) + " · " + fmtDur(r.dur) + (r.success ? "" : " · 失败") + "</title></circle>";
+    }).join("");
+
+    var xl = '<text x="' + padL + '" y="' + (H - 5) + '" class="axis">' + fmtTime(runs[0].start) + "</text>" +
+      '<text x="' + (W - padR) + '" y="' + (H - 5) + '" text-anchor="end" class="axis">' + fmtTime(runs[runs.length - 1].start) + "</text>";
+
+    return '<svg viewBox="0 0 ' + W + " " + H + '" width="100%" style="display:block;height:auto" preserveAspectRatio="xMidYMid meet">' +
+      grid + '<path d="' + area + '" fill="#2563eb" opacity=".07"/>' +
+      '<path d="' + path + '" fill="none" stroke="#2563eb" stroke-width="1.6" stroke-linejoin="round"/>' +
+      thrLine + dots + xl + "</svg>";
+  }
+
+  function closeDrawer() {
+    $("mask").classList.remove("on");
+    $("drawer").classList.remove("on");
+  }
+
+  /* ---------------- modal ---------------- */
+  var modalCb = null;
+  function askModal(title, desc, value, cb) {
+    $("mTitle").textContent = title;
+    $("mDesc").textContent = desc || "";
+    $("mInput").value = value || "";
+    modalCb = cb;
+    $("modalMask").classList.add("on");
+    setTimeout(function () { $("mInput").focus(); $("mInput").select(); }, 30);
+  }
+  function closeModal() { $("modalMask").classList.remove("on"); modalCb = null; }
+  $("mCancel").onclick = closeModal;
+  $("mOk").onclick = function () {
+    var v = $("mInput").value.trim();
+    if (modalCb) { var cb = modalCb; closeModal(); cb(v); } else closeModal();
+  };
+  $("mInput").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") $("mOk").click();
+    if (e.key === "Escape") closeModal();
+  });
+  $("modalMask").addEventListener("click", function (e) { if (e.target === this) closeModal(); });
+
+  /* ---------------- 事件 ---------------- */
+  function bindRowEvents() {
+    Array.prototype.forEach.call(document.querySelectorAll(".row"), function (el) {
+      el.addEventListener("click", function () { openDrawer(el.getAttribute("data-id")); });
+      el.addEventListener("dragstart", function (e) {
+        el.classList.add("dragging");
+        e.dataTransfer.setData("text/plain", el.getAttribute("data-id"));
+        e.dataTransfer.effectAllowed = "move";
+      });
+      el.addEventListener("dragend", function () { el.classList.remove("dragging"); });
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll(".group"), function (g) {
+      if (state.view !== "custom") return;
+      g.addEventListener("dragover", function (e) { e.preventDefault(); g.classList.add("dragover"); });
+      g.addEventListener("dragleave", function (e) {
+        if (!g.contains(e.relatedTarget)) g.classList.remove("dragover");
+      });
+      g.addEventListener("drop", function (e) {
+        e.preventDefault(); g.classList.remove("dragover");
+        var id = e.dataTransfer.getData("text/plain");
+        var target = g.getAttribute("data-group");
+        if (!id) return;
+        if (target === UNGROUPED) delete customGroups[id];
+        else {
+          customGroups[id] = target;
+          if (groupOrder.indexOf(target) < 0) groupOrder.push(target);
+        }
+        saveJSON(LS.groups, customGroups); saveJSON(LS.order, groupOrder);
+        render(); toast("已移动到「" + target + "」");
+      });
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll(".ghead [data-act]"), function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var act = btn.getAttribute("data-act"), g = btn.getAttribute("data-g");
+        if (act === "toggle") {
+          closedGroups[g] = !closedGroups[g];
+          saveJSON(LS.closed, closedGroups);
+          render();
+        } else if (act === "rename") {
+          askModal("重命名分组", "组内任务会自动跟随新名字。", g, function (v) {
+            if (!v || v === g) return;
+            Object.keys(customGroups).forEach(function (tid) {
+              if (customGroups[tid] === g) customGroups[tid] = v;
+            });
+            var i = groupOrder.indexOf(g);
+            if (i >= 0) groupOrder[i] = v; else groupOrder.push(v);
+            saveJSON(LS.groups, customGroups); saveJSON(LS.order, groupOrder);
+            render(); toast("已重命名为「" + v + "」");
+          });
+        } else if (act === "delgroup") {
+          askModal("解散分组「" + g + "」", "组内任务会回到「未分组」，任务本身不受影响。", "", function () {
+            Object.keys(customGroups).forEach(function (tid) {
+              if (customGroups[tid] === g) delete customGroups[tid];
+            });
+            groupOrder = groupOrder.filter(function (x) { return x !== g; });
+            saveJSON(LS.groups, customGroups); saveJSON(LS.order, groupOrder);
+            render(); toast("分组已解散");
+          });
+        }
+      });
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll(".th[data-sort]"), function (th) {
+      th.addEventListener("click", function () {
+        var k = th.getAttribute("data-sort");
+        if (state.sortKey === k) state.dir = -state.dir;
+        else { state.sortKey = k; state.dir = 1; }
+        $("sortKey").value = k;
+        $("btnDir").textContent = state.dir > 0 ? "↑ 升序" : "↓ 降序";
+        render();
+      });
+    });
+  }
+
+  $("segView").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-view]");
+    if (!b) return;
+    state.view = b.getAttribute("data-view");
+    Array.prototype.forEach.call(this.querySelectorAll("button"), function (x) { x.classList.toggle("on", x === b); });
+    render();
+  });
+
+  $("sortKey").addEventListener("change", function () { state.sortKey = this.value; render(); });
+  $("btnDir").addEventListener("click", function () {
+    state.dir = -state.dir;
+    this.textContent = state.dir > 0 ? "↑ 升序" : "↓ 降序";
+    render();
+  });
+  $("filter").addEventListener("change", function () { state.filter = this.value; render(); });
+  $("threshold").addEventListener("change", function () { state.threshold = parseInt(this.value, 10); render(); });
+  $("showDeleted").addEventListener("change", function () { state.showDeleted = this.checked; render(); });
+
+  var qtimer = null;
+  $("q").addEventListener("input", function () {
+    var v = this.value;
+    clearTimeout(qtimer);
+    qtimer = setTimeout(function () { state.q = v; render(); }, 140);
+  });
+
+  $("btnNewGroup").addEventListener("click", function () {
+    askModal("新建分组", "建好后把任务行拖进去，或在任务详情里选择分组。", "", function (v) {
+      if (!v) return;
+      if (groupOrder.indexOf(v) < 0) groupOrder.push(v);
+      saveJSON(LS.order, groupOrder);
+      state.view = "custom";
+      Array.prototype.forEach.call(document.querySelectorAll("#segView button"), function (x) {
+        x.classList.toggle("on", x.getAttribute("data-view") === "custom");
+      });
+      render(); toast("已创建分组「" + v + "」，拖拽任务进去即可");
+    });
+  });
+
+  $("btnCsv").addEventListener("click", function () {
+    var head = ["任务名", "状态", "调度", "下次执行", "上次执行", "执行次数", "撞锁跳过", "失败次数",
+      "平均耗时(秒)", "中位(秒)", "P90(秒)", "最长(秒)", "最短(秒)", "累计(秒)", "成功率(%)", "工作目录", "任务ID"];
+    var rows = [head];
+    visibleTasks().slice().sort(cmp).forEach(function (t) {
+      var s = t.stats;
+      rows.push([
+        t.name, t.deleted ? "已删除" : t.status, t.scheduleText,
+        t.nextRunAt ? fmtFull(t.nextRunAt) : "",
+        t.lastRunAt ? fmtFull(t.lastRunAt) : "",
+        s.count, s.skipCount, s.failCount,
+        s.avg, s.median, s.p90, s.max, s.min, s.total,
+        s.successRate == null ? "" : s.successRate, t.cwd, t.id
+      ]);
+    });
+    var csv = rows.map(function (r) {
+      return r.map(function (v) {
+        var x = String(v == null ? "" : v);
+        return /[",\n\r]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x;
+      }).join(",");
+    }).join("\r\n");
+    var blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "定时任务耗时统计_" + new Date().toISOString().slice(0, 10) + ".csv";
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1500);
+    toast("已导出 " + (rows.length - 1) + " 条任务的耗时统计");
+  });
+
+  $("btnExport").addEventListener("click", function () {
+    var blob = new Blob([JSON.stringify({ groups: customGroups, order: groupOrder }, null, 2)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "scheduler-groups.json";
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    toast("分组配置已导出");
+  });
+
+  $("btnImport").addEventListener("click", function () {
+    var inp = document.createElement("input");
+    inp.type = "file"; inp.accept = ".json,application/json";
+    inp.onchange = function () {
+      var f = inp.files[0]; if (!f) return;
+      var r = new FileReader();
+      r.onload = function () {
+        try {
+          var d = JSON.parse(r.result);
+          if (d.groups) customGroups = d.groups;
+          if (d.order) groupOrder = d.order;
+          saveJSON(LS.groups, customGroups); saveJSON(LS.order, groupOrder);
+          render(); toast("分组配置已导入");
+        } catch (e) { toast("文件格式不对，导入失败"); }
+      };
+      r.readAsText(f);
+    };
+    inp.click();
+  });
+
+  $("btnRefresh").addEventListener("click", function () {
+    toast("请运行 refresh.sh 重新读取数据库，然后刷新本页");
+  });
+
+  $("mask").addEventListener("click", closeDrawer);
+  $("btnCloseDrawer").addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { closeDrawer(); closeModal(); }
+  });
+
+  /* ---------------- 初始化 ---------------- */
+  (function init() {
+    $("sortKey").value = state.sortKey;
+    $("filter").value = state.filter;
+    $("threshold").value = String(state.threshold);
+    $("showDeleted").checked = !!state.showDeleted;
+    $("btnDir").textContent = state.dir > 0 ? "↑ 升序" : "↓ 降序";
+    Array.prototype.forEach.call(document.querySelectorAll("#segView button"), function (x) {
+      x.classList.toggle("on", x.getAttribute("data-view") === state.view);
+    });
+
+    var t = DATA.totals || {};
+    $("sub").innerHTML = "数据生成于 <b>" + esc((DATA.generatedAt || "").replace("T", " ").slice(0, 16)) + "</b> · " +
+      "共 <b>" + (t.tasks || 0) + "</b> 个任务 / <b>" + (t.runs || 0) + "</b> 条执行记录 · " +
+      "数据源 <code style='font-size:11px;color:#6b7280'>" + esc(DATA.source || "") + "</code>";
+
+    window.addEventListener("beforeunload", function () {
+      saveJSON(LS.pref, { view: state.view, sortKey: state.sortKey, dir: state.dir, filter: state.filter, threshold: state.threshold, showDeleted: state.showDeleted });
+    });
+    setInterval(function () {
+      saveJSON(LS.pref, { view: state.view, sortKey: state.sortKey, dir: state.dir, filter: state.filter, threshold: state.threshold, showDeleted: state.showDeleted });
+    }, 5000);
+
+    render();
+  })();
+})();
+</script>
+</body>
+</html>

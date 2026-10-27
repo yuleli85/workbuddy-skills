@@ -1,0 +1,25 @@
+# 在页面上操作用户管理：新增、搜索、删除，看界面和接口是否一致
+name: 页面上新增、搜索、删除用户
+steps:
+  - goto: /#/system/user
+  - click: 按钮:新增
+  - fill: { 提示:用户名: "ui_${rand}", 提示:手机号: "13700000000" }
+  - name: 保存，等新增接口成功
+    click: 按钮:保存
+    response: { url: /api/users, method: POST, expect: { json: { $.code: 0 } }, save: { uid: $.data.id, uname: $.data.username } }
+  - expectToast: 新增成功
+  - fill: { 提示:请输入用户名: "${uname}" }
+  - name: 搜索，列表接口只回一条
+    click: 按钮:查询
+    response: { url: /api/users?, expect: { json: { $.data.total: 1 } } }
+  - expectText: { selector: "#tbl", text: "${uname}" }
+  - expectCount: { selector: "#tbl tr", eq: 2 }
+  - screenshot: 搜到新用户
+  - name: 删除（确认框自动点确定）
+    click: { selector: "#tbl .del" }
+    response: { url: "/api/users/", method: DELETE }
+  - expectToast: 删除成功
+  - expectNoText: { selector: "#tbl", text: "${uname}" }
+cleanup:
+  - api: { method: DELETE, url: "/api/users/${uid}" }
+    expect: { business: false }

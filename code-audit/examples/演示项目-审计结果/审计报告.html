@@ -1,0 +1,170 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>订单管理演示系统 代码审计报告</title><style>
+body{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC",sans-serif;color:#1f2329;max-width:1080px;margin:24px auto;padding:0 24px;line-height:1.65;font-size:14px}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:19px;margin:32px 0 12px;padding-bottom:6px;border-bottom:2px solid #e5e6eb}h3{font-size:15px;margin:18px 0 6px}
+.meta{color:#646a73;font-size:13px}.meta span{margin-right:18px}
+.verdict{margin:18px 0;padding:14px 18px;border-radius:8px;background:#f2f3f5;border-left:6px solid #3370ff}
+.verdict.bad{border-color:#f54a45;background:#fff0f0}.verdict.warn{border-color:#ff8800;background:#fff7ec}.verdict.ok{border-color:#00b42a;background:#eefbf0}
+.verdict b{font-size:18px}
+.tiles{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.tile{flex:1;min-width:92px;padding:10px 12px;border:1px solid #e5e6eb;border-radius:8px}
+.tile .n{font-size:24px;font-weight:600}.tile .l{color:#646a73;font-size:12px}
+table{border-collapse:collapse;width:100%;margin:8px 0 16px;font-size:13px}th,td{border:1px solid #dee0e3;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f5f6f7;font-weight:600;white-space:nowrap}
+.lv{display:inline-block;padding:0 8px;border-radius:10px;font-size:12px;white-space:nowrap;color:#fff}
+.lv-严重{background:#c9353f}.lv-高{background:#f54a45}.lv-中{background:#ff8800}.lv-低{background:#3370ff}.lv-建议{background:#8f959e}
+.st{white-space:nowrap;font-weight:600}.st-good{color:#00a02a}.st-bad{color:#e22e28}.st-mid{color:#d97a00}.st-na{color:#8f959e}
+code{font-family:Consolas,Menlo,monospace;font-size:12px;background:#f5f6f7;padding:1px 4px;border-radius:3px;overflow-wrap:anywhere}
+td.pos{width:30%}td.pos code{white-space:nowrap}
+.issue{border:1px solid #e5e6eb;border-radius:8px;padding:10px 14px;margin:10px 0;page-break-inside:avoid}
+.issue .t{font-weight:600;font-size:14px}.issue .row{display:flex;gap:10px}.issue .k{color:#646a73;flex:0 0 56px}.issue .v{flex:1}
+.small{color:#646a73;font-size:12px}
+@media print{body{margin:0;max-width:none}h2{page-break-after:avoid}.issue{page-break-inside:avoid}}
+</style></head><body>
+<h1>订单管理演示系统 代码审计报告</h1>
+<div class="meta"><span>版本：演示版</span><span>审计目的：交付验收</span><span>审计日期：2026-10-27</span></div>
+<div class="meta">审计范围：全部源代码（6 个程序文件）、数据库脚本和随附文档</div>
+<div class="meta">审计依据：《订单管理系统需求说明》R1～R8；README 和《用户使用手册》</div>
+<h2>一、结论</h2>
+<div class="verdict bad"><b>不建议验收</b><div>8 条需求里 3 条已实现、2 条部分实现、2 条与需求不一致、1 条未实现。安全上有 2 个严重问题：任何登录用户都能查看和修改别人的订单；批量导入接口不用登录，还能通过上传的文件在服务器上执行任意代码。另有满减金额算错、订单状态可以任意改、搜索可被注入读到别人的数据等高级别问题。交付物缺部署手册和接口文档，没有任何自动化测试。建议修完严重和高级别问题、补齐部署手册后重新提交审计。</div></div>
+<div class="tiles"><div class="tile"><div class="n">2</div><div class="l"><span class="lv lv-严重">严重</span> 问题</div></div><div class="tile"><div class="n">6</div><div class="l"><span class="lv lv-高">高</span> 问题</div></div><div class="tile"><div class="n">6</div><div class="l"><span class="lv lv-中">中</span> 问题</div></div><div class="tile"><div class="n">0</div><div class="l"><span class="lv lv-低">低</span> 问题</div></div><div class="tile"><div class="n">0</div><div class="l"><span class="lv lv-建议">建议</span> 问题</div></div></div>
+<div class="tiles"><div class="tile"><div class="n">2</div><div class="l">需求已实现</div></div><div class="tile"><div class="n">2</div><div class="l">需求部分实现</div></div><div class="tile"><div class="n">2</div><div class="l">需求未实现</div></div><div class="tile"><div class="n">2</div><div class="l">需求与需求不一致</div></div></div>
+<table><tr><th>审计维度</th><th>问题数</th><th>其中严重和高</th></tr>
+<tr><td>功能</td><td>3</td><td>2</td></tr>
+<tr><td>缺陷</td><td>3</td><td>1</td></tr>
+<tr><td>安全</td><td>6</td><td>5</td></tr>
+<tr><td>交付物</td><td>1</td><td>0</td></tr>
+<tr><td>测试</td><td>1</td><td>0</td></tr>
+</table>
+<h2>二、功能实现情况（逐条对照需求）</h2>
+<table><tr><th>编号</th><th>需求</th><th>状态</th><th>实现位置</th><th>说明</th></tr>
+<tr><td>R1</td><td>用户注册、登录，口令加密存储</td><td class="st st-mid">部分实现</td><td>services/user.py register、login</td><td>能注册登录；口令用 MD5 存，不加盐，泄露后可被批量反查，不算安全的加密存储</td></tr>
+<tr><td>R2</td><td>用户只能查看和操作自己的订单</td><td class="st st-bad">与需求不一致</td><td>app.py get_order、change_status</td><td>订单详情和改状态只校验了登录，没校验订单是不是本人的</td></tr>
+<tr><td>R3</td><td>满 100 元（含 100 元）减 10 元</td><td class="st st-bad">与需求不一致</td><td>services/order.py calc_total</td><td>写成了大于 100 才减，正好 100 元不减；实测 50 元×2 件结果为 100.0</td></tr>
+<tr><td>R4</td><td>订单状态按顺序流转，不能跳步、不能回退</td><td class="st st-bad">未实现</td><td>services/order.py update_status</td><td>定义了状态顺序但没用上，传什么状态就改成什么；实测待支付可直接改为已完成</td></tr>
+<tr><td>R5</td><td>按商品名称关键字搜索自己的订单</td><td class="st st-good">已实现</td><td>services/order.py search_orders</td><td>功能可用，但查询是拼接的，可被注入（见问题 M05）</td></tr>
+<tr><td>R6</td><td>订单导出为 Excel</td><td class="st st-bad">未实现</td><td>services/order.py export_orders</td><td>只有空函数，也没有对应的接口</td></tr>
+<tr><td>R7</td><td>短信验证码登录，验证码 5 分钟有效</td><td class="st st-mid">部分实现</td><td>services/user.py send_sms_code、login_by_sms</td><td>5 分钟有效期做了；但没真正调短信平台发送，验证码可预测，也没限制发送频率和尝试次数</td></tr>
+<tr><td>R8</td><td>用文件批量导入订单</td><td class="st st-good">已实现</td><td>app.py import_orders</td><td>功能可用，但有严重安全问题（见问题 M06）</td></tr>
+</table>
+<h2>三、问题清单</h2>
+<table><tr><th>编号</th><th>级别</th><th>维度</th><th>问题</th><th class="pos">位置</th></tr>
+<tr><td>M01</td><td><span class="lv lv-严重">严重</span></td><td style="white-space:nowrap">安全</td><td>越权：登录用户可以查看、修改任何人的订单</td><td class="pos"><code>app.py:56</code><br><code>app.py:70</code><br><code>services/order.py:27</code></td></tr>
+<tr><td>M06</td><td><span class="lv lv-严重">严重</span></td><td style="white-space:nowrap">安全</td><td>批量导入接口不用登录，且上传文件可在服务器上执行任意代码</td><td class="pos"><code>app.py:77</code><br><code>app.py:78</code><br><code>requirements.txt</code></td></tr>
+<tr><td>M02</td><td><span class="lv lv-高">高</span></td><td style="white-space:nowrap">缺陷</td><td>满减算错：正好 100 元的订单没有减 10 元</td><td class="pos"><code>services/order.py:12</code></td></tr>
+<tr><td>M03</td><td><span class="lv lv-高">高</span></td><td style="white-space:nowrap">功能</td><td>订单状态可以任意修改，没有按流程控制</td><td class="pos"><code>services/order.py:37</code><br><code>services/order.py:40</code></td></tr>
+<tr><td>M04</td><td><span class="lv lv-高">高</span></td><td style="white-space:nowrap">功能</td><td>订单导出 Excel 没有做</td><td class="pos"><code>services/order.py:45</code><br><code>services/order.py:46</code></td></tr>
+<tr><td>M05</td><td><span class="lv lv-高">高</span></td><td style="white-space:nowrap">安全</td><td>订单搜索可被 SQL 注入，能读到别人的订单</td><td class="pos"><code>services/order.py:33</code></td></tr>
+<tr><td>A02</td><td><span class="lv lv-高">高</span></td><td style="white-space:nowrap">安全</td><td>口令或密钥写死在代码里</td><td class="pos"><code>config.py:4</code></td></tr>
+<tr><td>A05</td><td><span class="lv lv-高">高</span></td><td style="white-space:nowrap">安全</td><td>用了 MD5/SHA1（用于存口令就是高危）</td><td class="pos"><code>services/user.py:11</code><br><code>services/user.py:16</code></td></tr>
+<tr><td>M07</td><td><span class="lv lv-中">中</span></td><td style="white-space:nowrap">功能</td><td>短信验证码登录没有真正发短信，验证码可预测、可被暴力尝试</td><td class="pos"><code>services/user.py:21</code><br><code>services/user.py:22</code></td></tr>
+<tr><td>M08</td><td><span class="lv lv-中">中</span></td><td style="white-space:nowrap">交付物</td><td>缺部署手册和接口文档，用户手册不全</td><td class="pos"><code>README.md</code><br><code>docs/用户使用手册.md</code><br><code>config.py:5</code> 等 4 处</td></tr>
+<tr><td>M09</td><td><span class="lv lv-中">中</span></td><td style="white-space:nowrap">测试</td><td>没有任何自动化测试</td><td class="pos"><code>整个项目</code></td></tr>
+<tr><td>A01</td><td><span class="lv lv-中">中</span></td><td style="white-space:nowrap">安全</td><td>调试开关或管理端点对外开着</td><td class="pos"><code>app.py:85</code><br><code>config.py:3</code></td></tr>
+<tr><td>A03</td><td><span class="lv lv-中">中</span></td><td style="white-space:nowrap">缺陷</td><td>金额用浮点数存或算，会有分厘误差</td><td class="pos"><code>services/order.py:9</code></td></tr>
+<tr><td>A04</td><td><span class="lv lv-中">中</span></td><td style="white-space:nowrap">缺陷</td><td>函数默认参数用了可变对象，调用之间会互相串数据</td><td class="pos"><code>services/order.py:17</code></td></tr>
+</table>
+<div class="issue"><div class="t">M01　<span class="lv lv-严重">严重</span>　越权：登录用户可以查看、修改任何人的订单</div>
+<div class="row"><span class="k">位置</span><span class="v"><code>app.py:56</code>、<code>app.py:70</code>、<code>services/order.py:27</code></span></div>
+<div class="row"><span class="k">现象</span><span class="v">订单详情和修改状态接口按订单编号直接查、直接改，没判断订单是否属于当前用户。实测用户 1 能读到用户 2 的订单。</span></div>
+<div class="row"><span class="k">影响</span><span class="v">任何注册用户遍历编号就能拿到全部订单（含收货信息），还能把别人的订单改成已完成。</span></div>
+<div class="row"><span class="k">修改建议</span><span class="v">查询和修改都带上当前用户条件（where id = ? and user_id = ?），查不到返回 404；管理员另走有权限校验的接口。</span></div>
+</div>
+<div class="issue"><div class="t">M06　<span class="lv lv-严重">严重</span>　批量导入接口不用登录，且上传文件可在服务器上执行任意代码</div>
+<div class="row"><span class="k">位置</span><span class="v"><code>app.py:77</code>、<code>app.py:78</code>、<code>requirements.txt</code></span></div>
+<div class="row"><span class="k">现象</span><span class="v">导入接口没检查登录；用 yaml.load 解析上传内容，所用 PyYAML 5.3.1 版本可以借此执行任意代码。</span></div>
+<div class="row"><span class="k">影响</span><span class="v">不用账号就能控制服务器，读取或删除全部数据。</span></div>
+<div class="row"><span class="k">修改建议</span><span class="v">接口加登录校验；改用 yaml.safe_load 或直接用 JSON；PyYAML 升级到 5.4 以上；导入内容逐项校验。</span></div>
+</div>
+<div class="issue"><div class="t">M02　<span class="lv lv-高">高</span>　满减算错：正好 100 元的订单没有减 10 元</div>
+<div class="row"><span class="k">位置</span><span class="v"><code>services/order.py:12</code></span></div>
+<div class="row"><span class="k">现象</span><span class="v">条件写成 total &gt; 100，需求是满 100（含 100）。</span></div>
+<div class="row"><span class="k">影响</span><span class="v">所有正好 100 元的订单多收 10 元，会引发客诉。</span></div>
+<div class="row"><span class="k">修改建议</span><span class="v">改成 &gt;= 100，并补「99.99 / 100 / 100.01」三个边界的测试。</span></div>
+</div>
+<div class="issue"><div class="t">M03　<span class="lv lv-高">高</span>　订单状态可以任意修改，没有按流程控制</div>
+<div class="row"><span class="k">位置</span><span class="v"><code>services/order.py:37</code>、<code>services/order.py:40</code></span></div>
+<div class="row"><span class="k">现象</span><span class="v">update_status 直接把状态改成传入的值，定义好的状态顺序没有使用；改库失败时也不报错。</span></div>
+<div class="row"><span class="k">影响</span><span class="v">可以跳过支付直接变成已完成，或把已完成改回待支付，账目对不上。</span></div>
+<div class="row"><span class="k">修改建议</span><span class="v">按状态顺序只允许改到下一个状态，其他一律拒绝并提示；失败要返回错误而不是吞掉。</span></div>
+</div>
+<div class="issue"><div class="t">M04　<span class="lv lv-高">高</span>　订单导出 Excel 没有做</div>
+<div class="row"><span class="k">位置</span><span class="v"><code>services/order.py:45</code>、<code>services/order.py:46</code></span></div>
+<div class="row"><span class="k">现象</span><span class="v">只有一个返回空列表的函数，没有接口和页面入口。</span></div>
+<div class="row"><span class="k">影响</span><span class="v">需求功能缺失。</span></div>
+<div class="row"><span class="k">修改建议</span><span class="v">按需求实现导出接口（只导出本人订单），并在用户手册里补操作说明。</span></div>
+</div>
+<div class="issue"><div class="t">M05　<span class="lv lv-高">高</span>　订单搜索可被 SQL 注入，能读到别人的订单</div>
+<div class="row"><span class="k">位置</span><span class="v"><code>services/order.py:33</code></span></div>
+<div class="row"><span class="k">现象</span><span class="v">搜索关键字直接拼进 SQL。实测输入「%&#x27; or 1=1 --」后，用户 1 搜到了用户 2 的订单。</span></div>
+<div class="row"><span class="k">影响</span><span class="v">可绕过「只看自己订单」的限制读取全部数据，进一步可能读取用户表。</span></div>
+<div class="row"><span class="k">修改建议</span><span class="v">改成参数化查询：where o.user_id = ? and i.name like ?，参数传 (&#x27;%&#x27; + keyword + &#x27;%&#x27;)。</span></div>
+</div>
+<div class="issue"><div class="t">A02　<span class="lv lv-高">高</span>　口令或密钥写死在代码里</div>
+<div class="row"><span class="k">位置</span><span class="v"><code>config.py:4</code></span></div>
+<div class="row"><span class="k">现象</span><span class="v">会话签名密钥写死在配置文件里，拿到代码就能伪造任何人的登录状态。</span></div>
+<div class="row"><span class="k">修改建议</span><span class="v">改成从环境变量或配置中心读取，代码和仓库里只留示例值；已提交过的真实口令要换掉。</span></div>
+</div>
+<div class="issue"><div class="t">A05　<span class="lv lv-高">高</span>　用了 MD5/SHA1（用于存口令就是高危）</div>
+<div class="row"><span class="k">位置</span><span class="v"><code>services/user.py:11</code>、<code>services/user.py:16</code></span></div>
+<div class="row"><span class="k">现象</span><span class="v">注册和登录都用不加盐的 MD5 存口令。</span></div>
+<div class="row"><span class="k">修改建议</span><span class="v">存口令改用 bcrypt / argon2 / PBKDF2（加盐、慢哈希）；只做文件校验、缓存键的可忽略。</span></div>
+</div>
+<div class="issue"><div class="t">M07　<span class="lv lv-中">中</span>　短信验证码登录没有真正发短信，验证码可预测、可被暴力尝试</div>
+<div class="row"><span class="k">位置</span><span class="v"><code>services/user.py:21</code>、<code>services/user.py:22</code></span></div>
+<div class="row"><span class="k">现象</span><span class="v">发送函数只把验证码存在内存里，没有调用短信平台；验证码用普通随机数生成；没有限制发送频率和错误次数；存在内存里，服务重启或多进程部署时会丢。</span></div>
+<div class="row"><span class="k">影响</span><span class="v">功能实际不可用；接上短信后也有被刷短信和猜中验证码的风险。</span></div>
+<div class="row"><span class="k">修改建议</span><span class="v">接入短信平台；用 secrets 生成验证码；同一手机号 60 秒内只发一次、错 5 次作废；验证码存 Redis 等共享存储。</span></div>
+</div>
+<div class="issue"><div class="t">M08　<span class="lv lv-中">中</span>　缺部署手册和接口文档，用户手册不全</div>
+<div class="row"><span class="k">位置</span><span class="v"><code>README.md</code>、<code>docs/用户使用手册.md</code>、<code>config.py:5</code>、<code>config.py:6</code></span></div>
+<div class="row"><span class="k">现象</span><span class="v">没有部署手册，README 只写了三条启动命令，没写环境版本、配置项（数据库位置、短信密钥）、生产配置、备份和升级回滚；没有接口文档；用户手册没有截图、角色说明和常见问题，也没写导入、改状态的操作。</span></div>
+<div class="row"><span class="k">影响</span><span class="v">客户运维人员无法照着部署和维护，后续接手开发要从代码里倒推接口。</span></div>
+<div class="row"><span class="k">修改建议</span><span class="v">补部署手册（环境要求、配置项清单、初始化、启动、验证、备份、升级回滚、常见问题）和接口文档；用户手册按功能逐个补全操作步骤和截图。</span></div>
+</div>
+<div class="issue"><div class="t">M09　<span class="lv lv-中">中</span>　没有任何自动化测试</div>
+<div class="row"><span class="k">位置</span><span class="v"><code>整个项目</code></span></div>
+<div class="row"><span class="k">现象</span><span class="v">项目里没有测试代码，交付材料里也没有测试报告。</span></div>
+<div class="row"><span class="k">影响</span><span class="v">满减边界、状态流转这类规则改动后无法回归，本次发现的计算问题就是缺测试导致的。</span></div>
+<div class="row"><span class="k">修改建议</span><span class="v">至少给金额计算、状态流转、越权校验补单元或接口测试，并随交付提供测试报告。</span></div>
+</div>
+<div class="issue"><div class="t">A01　<span class="lv lv-中">中</span>　调试开关或管理端点对外开着</div>
+<div class="row"><span class="k">位置</span><span class="v"><code>app.py:85</code>、<code>config.py:3</code></span></div>
+<div class="row"><span class="k">现象</span><span class="v">调试模式写死开启且监听所有网卡，出错页面可执行代码。</span></div>
+<div class="row"><span class="k">修改建议</span><span class="v">生产配置关掉调试、接口文档页和管理端点，或者至少加登录；部署手册写清生产配置怎么设。</span></div>
+</div>
+<div class="issue"><div class="t">A03　<span class="lv lv-中">中</span>　金额用浮点数存或算，会有分厘误差</div>
+<div class="row"><span class="k">位置</span><span class="v"><code>services/order.py:9</code></span></div>
+<div class="row"><span class="k">现象</span><span class="v">单价用浮点数累加；数据库金额字段也是浮点类型。</span></div>
+<div class="row"><span class="k">修改建议</span><span class="v">金额用 BigDecimal / Decimal / 整数「分」存和算；数据库用 DECIMAL。</span></div>
+</div>
+<div class="issue"><div class="t">A04　<span class="lv lv-中">中</span>　函数默认参数用了可变对象，调用之间会互相串数据</div>
+<div class="row"><span class="k">位置</span><span class="v"><code>services/order.py:17</code></span></div>
+<div class="row"><span class="k">现象</span><span class="v">实测连续下两单，第二单的标签变成两个「新订单」。</span></div>
+<div class="row"><span class="k">修改建议</span><span class="v">默认值写 None，函数里 if x is None: x = []。</span></div>
+</div>
+<h2>四、交付物检查</h2>
+<table><tr><th>交付物</th><th>状态</th><th>说明</th></tr>
+<tr><td>需求或设计文档</td><td class="st st-good">齐全</td><td>有需求说明，没有设计文档（小项目可接受）</td></tr>
+<tr><td>用户使用手册</td><td class="st st-mid">不全</td><td>缺截图、角色权限说明、常见问题；导入、改状态、短信登录没写</td></tr>
+<tr><td>部署手册</td><td class="st st-bad">缺失</td><td>README 只有三条启动命令</td></tr>
+<tr><td>接口文档</td><td class="st st-bad">缺失</td><td></td></tr>
+<tr><td>数据库脚本</td><td class="st st-good">齐全</td><td>有建表脚本；没有初始化数据和升级脚本</td></tr>
+<tr><td>构建和启动脚本</td><td class="st st-mid">不全</td><td>只有依赖清单，没有启动停止脚本或容器配置</td></tr>
+<tr><td>配置样例</td><td class="st st-bad">缺失</td><td>配置直接写在代码里，没有不带真实值的配置样例</td></tr>
+<tr><td>自动化测试</td><td class="st st-bad">缺失</td><td></td></tr>
+<tr><td>测试报告</td><td class="st st-bad">缺失</td><td></td></tr>
+<tr><td>版本说明</td><td class="st st-bad">缺失</td><td></td></tr>
+<tr><td>README</td><td class="st st-good">齐全</td><td></td></tr>
+<tr><td>许可证和第三方声明</td><td class="st st-bad">缺失</td><td></td></tr>
+</table>
+<h2>五、运行验证</h2>
+<table><tr><th>验证项</th><th>结果</th><th>说明</th></tr>
+<tr><td>代码能编译（语法检查）</td><td class="st st-good">通过</td><td>全部程序文件编译通过</td></tr>
+<tr><td>自动化测试全部通过</td><td class="st st-na">未做</td><td>项目没有测试</td></tr>
+<tr><td>按部署手册在干净环境装起来</td><td class="st st-na">未做</td><td>没有部署手册</td></tr>
+<tr><td>核心规则实测</td><td class="st st-bad">不通过</td><td>满减边界、状态流转、越权、搜索注入四项实测均不符合需求</td></tr>
+</table>
+<h2>六、附：项目概况和审计方法</h2>
+<table><tr><th>语言</th><th>文件数</th><th>代码行数</th></tr><tr><td>Python</td><td>6</td><td>191</td></tr><tr><td>SQL</td><td>1</td><td>3</td></tr></table>
+<p>框架：Flask；第三方依赖 2 个；自动化测试文件 0 个。</p>
+<p>方法：人工逐模块阅读代码，对照需求逐条核对功能；结合自动扫描（写法风险、密钥、配置一致性、组件已知漏洞、重复代码），自动扫描的每条疑点都经人工核对，属实的计入问题清单。自动扫描共 16 条疑点：属实 15 条、误报 0 条、可接受 1 条。</p>
+<p class="small">级别说明：严重＝可被直接利用造成数据泄露、篡改或服务被控制，或核心功能不能用、金额算错，必须修复；高＝特定条件下出错或被利用，影响主要功能，验收前修复；中＝影响局部功能或体验，限期修复；低＝规范和可维护性问题，排期修复；建议＝改进意见。</p>
+</body></html>

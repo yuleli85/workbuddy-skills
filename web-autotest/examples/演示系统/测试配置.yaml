@@ -1,0 +1,32 @@
+# 演示后台的测试配置。先 node server.js 起演示后台，再跑：
+#   node ../../scripts/autotest.js run 测试配置.yaml
+name: 演示后台
+baseUrl: http://127.0.0.1:5173
+
+# 登录：先调登录接口拿令牌，存进浏览器（前端把令牌放 localStorage 的 token 里）
+login:
+  api:
+    method: POST
+    url: /api/login
+    json: { username: admin, password: "123456" }
+    save: { token: $.data.token }
+  localStorage:
+    token: ${token}
+
+# 所有接口请求都带上令牌；后端出错也回 200 时，看返回里的 code（0 才是成功）
+api:
+  headers:
+    Authorization: Bearer ${token}
+  business: { path: $.code, ok: [0], msgPath: $.msg }
+  openapi:
+    url: /api/openapi.json
+    methods: [GET]
+    slowMs: 3000
+  cases: 用例/接口/*.yaml
+
+menus:
+  start: /#/home
+  slowMs: 3000
+  exclude: [退出登录]
+
+flows: 用例/功能/*.yaml

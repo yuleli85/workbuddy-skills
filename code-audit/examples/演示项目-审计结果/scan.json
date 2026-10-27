@@ -1,0 +1,398 @@
+{
+ "version": 1,
+ "scannedAt": "2026-10-27 09:59",
+ "root": "examples/演示项目",
+ "project": "演示项目",
+ "git": null,
+ "files": 11,
+ "languages": [
+  {
+   "lang": "Python",
+   "files": 6,
+   "lines": 191
+  },
+  {
+   "lang": "SQL",
+   "files": 1,
+   "lines": 3
+  }
+ ],
+ "stack": {
+  "frameworks": [
+   "Flask"
+  ],
+  "db": true,
+  "commands": [
+   "pip install -r requirements.txt",
+   "python -m pytest",
+   "python -m compileall -q ."
+  ]
+ },
+ "deps": {
+  "count": 2,
+  "risky": [
+   {
+    "eco": "pypi",
+    "name": "pyyaml",
+    "version": "5.3.1",
+    "spec": "PyYAML==5.3.1",
+    "file": "requirements.txt",
+    "level": "严重",
+    "desc": "yaml.load 可远程执行代码（CVE-2020-14343）",
+    "fixed": "5.4",
+    "approx": false
+   }
+  ],
+  "list": [
+   {
+    "eco": "pypi",
+    "name": "flask",
+    "version": "2.3.3",
+    "spec": "Flask==2.3.3",
+    "file": "requirements.txt"
+   },
+   {
+    "eco": "pypi",
+    "name": "pyyaml",
+    "version": "5.3.1",
+    "spec": "PyYAML==5.3.1",
+    "file": "requirements.txt"
+   }
+  ]
+ },
+ "tests": {
+  "srcFiles": 6,
+  "testFiles": 0,
+  "sample": [],
+  "npmTest": ""
+ },
+ "deliverables": [
+  {
+   "item": "需求或设计文档",
+   "files": [
+    "docs/需求说明.md"
+   ],
+   "auto": "有",
+   "missing": [],
+   "note": ""
+  },
+  {
+   "item": "用户使用手册",
+   "files": [
+    "docs/用户使用手册.md"
+   ],
+   "auto": "不全",
+   "missing": [
+    "角色和权限说明",
+    "配图或截图",
+    "常见问题"
+   ],
+   "note": ""
+  },
+  {
+   "item": "部署手册",
+   "files": [
+    "README.md"
+   ],
+   "auto": "不全",
+   "missing": [
+    "配置项说明",
+    "部署后怎么验证",
+    "升级和回滚",
+    "备份",
+    "常见问题和排错"
+   ],
+   "note": "没有单独的部署手册，README 里写了一部分"
+  },
+  {
+   "item": "接口文档",
+   "files": [],
+   "auto": "缺失",
+   "missing": [],
+   "note": ""
+  },
+  {
+   "item": "测试报告",
+   "files": [],
+   "auto": "缺失",
+   "missing": [],
+   "note": ""
+  },
+  {
+   "item": "版本说明",
+   "files": [],
+   "auto": "缺失",
+   "missing": [],
+   "note": ""
+  },
+  {
+   "item": "数据库脚本",
+   "files": [
+    "schema.sql"
+   ],
+   "auto": "有",
+   "missing": [],
+   "note": ""
+  },
+  {
+   "item": "构建和启动脚本",
+   "files": [
+    "requirements.txt"
+   ],
+   "auto": "不全",
+   "missing": [
+    "一键启动或部署脚本（Dockerfile、启动停止脚本等）"
+   ],
+   "note": ""
+  },
+  {
+   "item": "配置样例",
+   "files": [
+    "config.py"
+   ],
+   "auto": "不全",
+   "missing": [
+    "不带真实口令的配置样例（如 .env.example），写清每个配置项"
+   ],
+   "note": ""
+  },
+  {
+   "item": "自动化测试",
+   "files": [],
+   "auto": "缺失",
+   "missing": [],
+   "note": "测试文件 0 个，源代码文件 6 个"
+  },
+  {
+   "item": "README",
+   "files": [
+    "README.md"
+   ],
+   "auto": "有",
+   "missing": [],
+   "note": ""
+  },
+  {
+   "item": "许可证和第三方声明",
+   "files": [],
+   "auto": "缺失",
+   "missing": [],
+   "note": "交付给客户的项目一般要写明代码归属和用到的开源组件许可"
+  }
+ ],
+ "config": {
+  "envUsed": [
+   "ORDER_DB",
+   "SMS_API_KEY"
+  ],
+  "envUndocumented": {
+   "ORDER_DB": [
+    "config.py:5"
+   ],
+   "SMS_API_KEY": [
+    "config.py:6",
+    "config.py:6"
+   ]
+  },
+  "springUndefined": {}
+ },
+ "duplicates": [],
+ "longFunctions": [],
+ "bigFiles": [],
+ "tools": {},
+ "overflow": [],
+ "hits": [
+  {
+   "rule": "SEC-DESERIALIZE",
+   "dim": "安全",
+   "level": "高",
+   "title": "反序列化不可信数据，可能被远程执行代码",
+   "file": "app.py",
+   "line": 78,
+   "code": "data = yaml.load(request.data)",
+   "advice": "外部来的数据只用 JSON 这类纯数据格式；YAML 用 safe_load；fastjson 关掉 autoType 或换 fastjson2。",
+   "inTest": false,
+   "id": "S-c66162"
+  },
+  {
+   "rule": "SEC-DEBUG-ON",
+   "dim": "安全",
+   "level": "中",
+   "title": "调试开关或管理端点对外开着",
+   "file": "app.py",
+   "line": 85,
+   "code": "app.run(host=\"0.0.0.0\", port=5000, debug=True)",
+   "advice": "生产配置关掉调试、接口文档页和管理端点，或者至少加登录；部署手册写清生产配置怎么设。",
+   "inTest": false,
+   "id": "S-257b5e"
+  },
+  {
+   "rule": "SEC-HARDCODED-SECRET",
+   "dim": "安全",
+   "level": "高",
+   "title": "口令或密钥写死在代码里",
+   "file": "config.py",
+   "line": 4,
+   "code": "SECRET_KEY = \"f3****0\"",
+   "advice": "改成从环境变量或配置中心读取，代码和仓库里只留示例值；已提交过的真实口令要换掉。",
+   "inTest": false,
+   "id": "S-296d3f"
+  },
+  {
+   "rule": "SEC-DEBUG-ON",
+   "dim": "安全",
+   "level": "中",
+   "title": "调试开关或管理端点对外开着",
+   "file": "config.py",
+   "line": 3,
+   "code": "DEBUG = True",
+   "advice": "生产配置关掉调试、接口文档页和管理端点，或者至少加登录；部署手册写清生产配置怎么设。",
+   "inTest": false,
+   "id": "S-d8b407"
+  },
+  {
+   "rule": "SEC-SQL-FORMAT",
+   "dim": "安全",
+   "level": "高",
+   "title": "SQL 用字符串格式化拼参数，可能被注入",
+   "file": "services/order.py",
+   "line": 33,
+   "code": "sql = f\"select o.* from orders o join order_items i on i.order_id = o.id where o.user_id = {user_id} and i.name like '%{keyword}%'\"",
+   "advice": "改用参数化：cursor.execute(\"... where id=%s\", (id,)) 或 ORM 查询；不要用 f-string / % / format 拼 SQL。",
+   "inTest": false,
+   "id": "S-a3d73a"
+  },
+  {
+   "rule": "BUG-MONEY-FLOAT",
+   "dim": "缺陷",
+   "level": "中",
+   "title": "金额用浮点数存或算，会有分厘误差",
+   "file": "services/order.py",
+   "line": 9,
+   "code": "price = float(it[\"price\"])",
+   "advice": "金额用 BigDecimal / Decimal / 整数「分」存和算；数据库用 DECIMAL。",
+   "inTest": false,
+   "id": "S-cd3eb9"
+  },
+  {
+   "rule": "BUG-PY-MUTABLE-DEFAULT",
+   "dim": "缺陷",
+   "level": "中",
+   "title": "函数默认参数用了可变对象，调用之间会互相串数据",
+   "file": "services/order.py",
+   "line": 17,
+   "code": "def create_order(user_id, items, tags=[]):",
+   "advice": "默认值写 None，函数里 if x is None: x = []。",
+   "inTest": false,
+   "id": "S-16b1be"
+  },
+  {
+   "rule": "BUG-PY-EXCEPT-PASS",
+   "dim": "缺陷",
+   "level": "中",
+   "title": "出错后什么都不做（吞掉异常），问题会被藏起来",
+   "file": "services/order.py",
+   "line": 40,
+   "code": "except Exception:",
+   "advice": "至少记日志；只捕获能处理的异常类型。",
+   "inTest": false,
+   "id": "S-5e230f"
+  },
+  {
+   "rule": "FUNC-TODO",
+   "dim": "功能",
+   "level": "低",
+   "title": "留有「待完成」标记，对应功能可能没做完",
+   "file": "services/order.py",
+   "line": 46,
+   "code": "# TODO 导出 Excel 还没做",
+   "advice": "逐个核对：已经做完的删掉标记；没做完的对照需求记为功能问题。",
+   "inTest": false,
+   "id": "S-1c329b"
+  },
+  {
+   "rule": "REASON-SELECT-STAR",
+   "dim": "合理性",
+   "level": "低",
+   "title": "SQL 用了 select *（字段变动易出错、多查数据）",
+   "file": "services/order.py",
+   "line": 28,
+   "code": "rows = db.query(\"select * from orders where id = ?\", (order_id,))",
+   "advice": "列出要用的字段。",
+   "inTest": false,
+   "id": "S-f9f21e"
+  },
+  {
+   "rule": "SEC-WEAK-HASH",
+   "dim": "安全",
+   "level": "高",
+   "title": "用了 MD5/SHA1（用于存口令就是高危）",
+   "file": "services/user.py",
+   "line": 11,
+   "code": "pwd_hash = hashlib.md5(password.encode()).hexdigest()",
+   "advice": "存口令改用 bcrypt / argon2 / PBKDF2（加盐、慢哈希）；只做文件校验、缓存键的可忽略。",
+   "inTest": false,
+   "id": "S-96db54"
+  },
+  {
+   "rule": "SEC-WEAK-HASH",
+   "dim": "安全",
+   "level": "高",
+   "title": "用了 MD5/SHA1（用于存口令就是高危）",
+   "file": "services/user.py",
+   "line": 16,
+   "code": "pwd_hash = hashlib.md5(password.encode()).hexdigest()",
+   "advice": "存口令改用 bcrypt / argon2 / PBKDF2（加盐、慢哈希）；只做文件校验、缓存键的可忽略。",
+   "inTest": false,
+   "id": "S-96db54x"
+  },
+  {
+   "rule": "SEC-WEAK-RANDOM",
+   "dim": "安全",
+   "level": "中",
+   "title": "验证码、令牌用了可预测的随机数",
+   "file": "services/user.py",
+   "line": 22,
+   "code": "code = str(random.randint(100000, 999999))",
+   "advice": "安全相关的随机数用 SecureRandom / secrets / crypto.randomBytes / random_bytes。",
+   "inTest": false,
+   "id": "S-420c47"
+  },
+  {
+   "rule": "DEP-KNOWN-VULN",
+   "dim": "依赖",
+   "level": "严重",
+   "title": "用了有已知漏洞的组件版本：pyyaml 5.3.1",
+   "file": "requirements.txt",
+   "line": 0,
+   "code": "pyyaml PyYAML==5.3.1",
+   "advice": "yaml.load 可远程执行代码（CVE-2020-14343）；升级到 5.4 或更高",
+   "inTest": false,
+   "id": "S-7e7fc2"
+  },
+  {
+   "rule": "DELIV-ENV-UNDOC",
+   "dim": "交付物",
+   "level": "中",
+   "title": "程序要读的配置项文档里没写：ORDER_DB",
+   "file": "config.py",
+   "line": 5,
+   "code": "ORDER_DB",
+   "advice": "在部署手册和配置样例里写明这个配置项的含义、取值和是否必填。",
+   "inTest": false,
+   "id": "S-ccaada"
+  },
+  {
+   "rule": "DELIV-ENV-UNDOC",
+   "dim": "交付物",
+   "level": "中",
+   "title": "程序要读的配置项文档里没写：SMS_API_KEY",
+   "file": "config.py",
+   "line": 6,
+   "code": "SMS_API_KEY",
+   "advice": "在部署手册和配置样例里写明这个配置项的含义、取值和是否必填。",
+   "inTest": false,
+   "id": "S-2dd332"
+  }
+ ]
+}

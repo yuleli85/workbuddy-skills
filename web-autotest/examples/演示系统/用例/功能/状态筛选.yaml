@@ -1,0 +1,10 @@
+# 页面上按状态筛选，表格里每一行的状态都要对得上
+name: 页面上按「启用」筛选用户
+steps:
+  - goto: /#/system/user
+  - choose: { selector: "#stv", option: 启用 }
+  - name: 查询
+    click: 按钮:查询
+    response: { url: /api/users?, expect: { json: { $.data.records: { every: { status: 1 } } } } }
+  - js: "[...document.querySelectorAll('#tbl td.status')].map(td => td.innerText)"
+    expect: { every: 启用 }

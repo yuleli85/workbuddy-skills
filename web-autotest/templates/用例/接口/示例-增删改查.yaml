@@ -1,0 +1,38 @@
+# 接口用例示例：一条完整的增 → 查 → 改 → 删，前一步存下的值后一步用 ${名字} 取。
+# 测试数据名字带 autotest_ 开头，出了问题好找好删；cleanup 里的步骤不论成败都会跑。
+cases:
+  - name: 新增后能查到，修改生效，删除后查不到
+    steps:
+      - name: 新增
+        api: { method: POST, url: /api/user, json: { username: "autotest_${rand}", phone: "13900000000" } }
+        expect: { json: { $.data.id: { exists: true } } }
+        save: { uid: $.data.id, uname: $.data.username }
+      - name: 查详情，字段和提交的一致
+        api: { url: "/api/user/${uid}" }
+        expect: { json: { $.data.username: "${uname}", $.data.phone: "13900000000" } }
+      - name: 修改手机号
+        api: { method: PUT, url: /api/user, json: { id: "${uid}", phone: "13911111111" } }
+      - name: 再查，手机号已改
+        api: { url: "/api/user/${uid}" }
+        expect: { json: { $.data.phone: "13911111111" } }
+      - name: 删除
+        api: { method: DELETE, url: "/api/user/${uid}" }
+      - name: 删除后查不到
+        api: { url: /api/user/page, query: { username: "${uname}" } }
+        expect: { json: { $.data.total: 0 } }
+    cleanup:
+      - api: { method: DELETE, url: "/api/user/${uid}" }
+        expect: { business: false }
+
+  - name: 必填和格式校验要拦住
+    each:                                  # 一组数据跑一遍
+      - { name: 缺用户名, body: { phone: "13900000000" } }
+      - { name: 手机号格式错, body: { username: autotest_x, phone: "123" } }
+    steps:
+      - api: { method: POST, url: /api/user, json: "${body}" }
+        expect: { json: { $.code: { ne: 0 } } }
+
+  - name: 按状态筛选，结果全是这个状态
+    steps:
+      - api: { url: /api/user/page, query: { status: 1, size: 100 } }
+        expect: { json: { $.data.records: { every: { status: 1 } } } }

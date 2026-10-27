@@ -1,0 +1,41 @@
+# 用户接口：增、查、删一整圈，外加校验规则和筛选逻辑
+cases:
+  - name: 新增用户后能查到，删除后查不到
+    steps:
+      - name: 新增
+        api: { method: POST, url: /api/users, json: { username: "autotest_${rand}", phone: "13900000000" } }
+        expect: { json: { $.code: 0, $.data.id: { exists: true } } }
+        save: { uid: $.data.id, uname: $.data.username }
+      - name: 详情能查到，字段和提交的一致
+        api: { url: "/api/users/${uid}" }
+        expect: { json: { $.data.username: "${uname}", $.data.phone: "13900000000", $.data.status: 1 } }
+      - name: 按用户名搜得到
+        api: { url: /api/users, query: { keyword: "${uname}" } }
+        expect: { json: { $.data.total: 1 } }
+      - name: 删除
+        api: { method: DELETE, url: "/api/users/${uid}" }
+      - name: 删除后详情查不到
+        api: { url: "/api/users/${uid}" }
+        expect: { json: { $.code: 1, $.msg: 用户不存在 } }
+
+  - name: 新增校验：缺用户名、手机号格式错、重名都要拦住
+    each:
+      - { name: 缺用户名, body: { phone: "13900000000" }, why: 用户名不能为空 }
+      - { name: 手机号格式错, body: { username: "autotest_x", phone: "123" }, why: 手机号格式不对 }
+      - { name: 重名, body: { username: admin }, why: 用户名已存在 }
+    steps:
+      - api: { method: POST, url: /api/users, json: "${body}" }
+        expect: { json: { $.code: 1, $.msg: "${why}" } }
+
+  - name: 按状态筛选，结果里只有对应状态的人
+    each:
+      - { name: 停用, status: 0 }
+      - { name: 启用, status: 1 }
+    steps:
+      - api: { url: /api/users, query: { status: "${status}", size: 100 } }
+        expect: { json: { $.data.records: { every: { status: "${status}" } } } }
+
+  - name: 没带令牌访问要被拒绝
+    steps:
+      - api: { url: /api/users, headers: { Authorization: "" } }
+        expect: { status: 401 }

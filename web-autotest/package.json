@@ -1,0 +1,16 @@
+{
+  "name": "web-autotest",
+  "version": "1.0.0",
+  "description": "网页系统自动化测试：菜单巡检、接口检查、功能流程用例，出 HTML 报告",
+  "private": true,
+  "type": "commonjs",
+  "bin": { "web-autotest": "scripts/autotest.js" },
+  "scripts": {
+    "demo": "node scripts/demo.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "playwright": "1.64.0"
+  }
+}

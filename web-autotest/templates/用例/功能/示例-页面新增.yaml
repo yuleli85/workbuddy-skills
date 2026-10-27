@@ -1,0 +1,18 @@
+# 页面用例示例：在页面上点、填、选，同时盯住背后的接口，最后看界面结果。
+name: 页面上新增一条，列表里能搜到
+steps:
+  - goto: /#/admin/user/index
+  - click: 按钮:新增
+  - fill: { 标签:用户名: "autotest_${rand}", 标签:手机号: "13900000000" }
+  - choose: { selector: 标签:角色, option: 普通用户 }
+  - name: 保存，等新增接口成功
+    click: 按钮:确定
+    response: { url: /api/user, method: POST, save: { uid: $.data.id } }
+  - expectToast: 成功
+  - fill: { 提示:请输入用户名: "autotest_" }
+  - click: 按钮:查询
+  - expectText: { selector: .el-table, text: autotest_ }
+  - screenshot: 新增后的列表
+cleanup:
+  - api: { method: DELETE, url: "/api/user/${uid}" }
+    expect: { business: false }

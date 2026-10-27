@@ -1,0 +1,817 @@
+{
+  "name": "演示后台",
+  "baseUrl": "http://127.0.0.1:59549",
+  "startedAt": "2026/10/27 08:32:06",
+  "ms": 38216,
+  "menus": {
+    "source": "dom",
+    "profile": "element",
+    "items": [
+      {
+        "key": "首页",
+        "name": "首页",
+        "parents": [],
+        "status": "pass",
+        "problems": [],
+        "apis": [],
+        "ms": 1502,
+        "url": "http://127.0.0.1:59549/#/home",
+        "shot": "/Users/shan/.workbuddy/skills/web-autotest/examples/演示系统/autotest-report/demo/shots/菜单-1-首页.png"
+      },
+      {
+        "key": "系统管理 / 用户管理",
+        "name": "用户管理",
+        "parents": [
+          "系统管理"
+        ],
+        "status": "pass",
+        "problems": [],
+        "apis": [
+          {
+            "method": "GET",
+            "url": "/api/users?current=1&size=20&keyword=",
+            "status": 200,
+            "ms": 1,
+            "problem": ""
+          }
+        ],
+        "ms": 1502,
+        "url": "http://127.0.0.1:59549/#/system/user",
+        "shot": "/Users/shan/.workbuddy/skills/web-autotest/examples/演示系统/autotest-report/demo/shots/菜单-2-系统管理_用户管理.png"
+      },
+      {
+        "key": "系统管理 / 角色管理",
+        "name": "角色管理",
+        "parents": [
+          "系统管理"
+        ],
+        "status": "fail",
+        "problems": [
+          {
+            "level": "fail",
+            "text": "弹出错误提示：服务器开小差了"
+          },
+          {
+            "level": "fail",
+            "text": "页面程序报错：服务器错误"
+          },
+          {
+            "level": "fail",
+            "text": "接口返回 500：GET /api/roles"
+          }
+        ],
+        "apis": [
+          {
+            "method": "GET",
+            "url": "/api/roles",
+            "status": 500,
+            "ms": 1,
+            "problem": "接口返回 500"
+          }
+        ],
+        "ms": 1502,
+        "url": "http://127.0.0.1:59549/#/system/role",
+        "shot": "/Users/shan/.workbuddy/skills/web-autotest/examples/演示系统/autotest-report/demo/shots/菜单-3-系统管理_角色管理.png"
+      },
+      {
+        "key": "系统管理 / 部门管理",
+        "name": "部门管理",
+        "parents": [
+          "系统管理"
+        ],
+        "status": "pass",
+        "problems": [],
+        "apis": [
+          {
+            "method": "GET",
+            "url": "/api/dept/tree",
+            "status": 200,
+            "ms": 1,
+            "problem": ""
+          }
+        ],
+        "ms": 1501,
+        "url": "http://127.0.0.1:59549/#/system/dept",
+        "shot": "/Users/shan/.workbuddy/skills/web-autotest/examples/演示系统/autotest-report/demo/shots/菜单-4-系统管理_部门管理.png"
+      },
+      {
+        "key": "系统管理 / 菜单管理",
+        "name": "菜单管理",
+        "parents": [
+          "系统管理"
+        ],
+        "status": "fail",
+        "problems": [
+          {
+            "level": "fail",
+            "text": "页面程序报错：Cannot read properties of undefined (reading 'items')"
+          }
+        ],
+        "apis": [],
+        "ms": 1503,
+        "url": "http://127.0.0.1:59549/#/system/menu",
+        "shot": "/Users/shan/.workbuddy/skills/web-autotest/examples/演示系统/autotest-report/demo/shots/菜单-5-系统管理_菜单管理.png"
+      },
+      {
+        "key": "业务中心 / 订单列表",
+        "name": "订单列表",
+        "parents": [
+          "业务中心"
+        ],
+        "status": "fail",
+        "problems": [
+          {
+            "level": "fail",
+            "text": "业务错误码 500：数据库连接超时：GET /api/orders?current=1&size=10"
+          }
+        ],
+        "apis": [
+          {
+            "method": "GET",
+            "url": "/api/orders?current=1&size=10",
+            "status": 200,
+            "ms": 3,
+            "problem": "业务错误码 500：数据库连接超时"
+          }
+        ],
+        "ms": 1502,
+        "url": "http://127.0.0.1:59549/#/biz/order",
+        "shot": "/Users/shan/.workbuddy/skills/web-autotest/examples/演示系统/autotest-report/demo/shots/菜单-6-业务中心_订单列表.png"
+      },
+      {
+        "key": "业务中心 / 数据报表",
+        "name": "数据报表",
+        "parents": [
+          "业务中心"
+        ],
+        "status": "warn",
+        "problems": [
+          {
+            "level": "warn",
+            "text": "打开慢：3.6 秒"
+          }
+        ],
+        "apis": [
+          {
+            "method": "GET",
+            "url": "/api/report/summary",
+            "status": 200,
+            "ms": 3523,
+            "problem": ""
+          }
+        ],
+        "ms": 3564,
+        "url": "http://127.0.0.1:59549/#/biz/report",
+        "shot": "/Users/shan/.workbuddy/skills/web-autotest/examples/演示系统/autotest-report/demo/shots/菜单-7-业务中心_数据报表.png"
+      },
+      {
+        "key": "业务中心 / 旧版统计",
+        "name": "旧版统计",
+        "parents": [
+          "业务中心"
+        ],
+        "status": "fail",
+        "problems": [
+          {
+            "level": "fail",
+            "text": "页面显示「404」：404 页面不存在"
+          },
+          {
+            "level": "warn",
+            "text": "页面几乎是空的（正文 9 个字）"
+          }
+        ],
+        "apis": [],
+        "ms": 1505,
+        "url": "http://127.0.0.1:59549/#/biz/legacy",
+        "shot": "/Users/shan/.workbuddy/skills/web-autotest/examples/演示系统/autotest-report/demo/shots/菜单-8-业务中心_旧版统计.png"
+      },
+      {
+        "key": "帮助 / 在线文档",
+        "name": "在线文档",
+        "parents": [
+          "帮助"
+        ],
+        "status": "pass",
+        "problems": [
+          {
+            "level": "info",
+            "text": "在新窗口打开（外链），只记网址不检查内容"
+          }
+        ],
+        "apis": [],
+        "url": "http://127.0.0.1:59549/docs.html",
+        "external": true
+      }
+    ],
+    "excluded": [
+      "退出登录"
+    ],
+    "home": []
+  },
+  "openapi": [
+    {
+      "key": "GET /api/health",
+      "summary": "健康检查",
+      "tag": "",
+      "status": "pass",
+      "http": 200,
+      "ms": 1,
+      "url": "http://127.0.0.1:59549/api/health",
+      "sample": "{\"code\":0,\"msg\":\"ok\",\"data\":\"up\"}"
+    },
+    {
+      "key": "GET /api/menu",
+      "summary": "菜单树",
+      "tag": "",
+      "status": "pass",
+      "http": 200,
+      "ms": 1,
+      "url": "http://127.0.0.1:59549/api/menu",
+      "sample": "{\"code\":0,\"msg\":\"ok\",\"data\":[{\"name\":\"首页\",\"path\":\"/home\"},{\"name\":\"系统管理\",\"path\":\"/system\",\"children\":[{\"name\":\"用户管理\",\"path\":\"user\"},{\"name\":\"角色管理\",\"path\":\"role\"},{\"name\":\"部门管理\",\"path\":\"dept\"},{\"name\":\"菜单管理\",\"path\":\"menu\"}]},{\"name\":\"业务中心\",\"path\":\"/biz\",\"children\":[{\"name\":\"订单列表\",\"path\":\"order\"},{\"name\":\"数据报表\",\"path\":\"report\"},{\"name\":\"旧版统计\",\"path\":\"legacy\"}]},{\"name\":\"帮助\",\"path\":\"/help\",\"children\""
+    },
+    {
+      "key": "GET /api/users",
+      "summary": "用户分页",
+      "tag": "",
+      "status": "pass",
+      "http": 200,
+      "ms": 2,
+      "url": "http://127.0.0.1:59549/api/users",
+      "sample": "{\"code\":0,\"msg\":\"ok\",\"data\":{\"records\":[{\"id\":1,\"username\":\"admin\",\"phone\":\"13800000001\",\"status\":1},{\"id\":2,\"username\":\"zhangsan\",\"phone\":\"13800000002\",\"status\":1},{\"id\":3,\"username\":\"lisi\",\"phone\":\"13800000003\",\"status\":0},{\"id\":4,\"username\":\"wangwu\",\"phone\":\"13800000004\",\"status\":1},{\"id\":5,\"username\":\"zhaoliu\",\"phone\":\"13800000005\",\"status\":0}],\"total\":5}}"
+    },
+    {
+      "key": "GET /api/users/{id}",
+      "summary": "用户详情",
+      "tag": "",
+      "status": "skip",
+      "problem": "缺参数 id（在 api.openapi.params 里给值就会测）"
+    },
+    {
+      "key": "GET /api/roles",
+      "summary": "角色列表",
+      "tag": "",
+      "status": "fail",
+      "http": 500,
+      "ms": 1,
+      "url": "http://127.0.0.1:59549/api/roles",
+      "sample": "{\"timestamp\":1793061157883,\"status\":500,\"error\":\"Internal Server Error\",\"path\":\"/api/roles\"}",
+      "problem": "状态码 500"
+    },
+    {
+      "key": "GET /api/dept/tree",
+      "summary": "部门树",
+      "tag": "",
+      "status": "pass",
+      "http": 200,
+      "ms": 1,
+      "url": "http://127.0.0.1:59549/api/dept/tree",
+      "sample": "{\"code\":0,\"msg\":\"ok\",\"data\":[{\"id\":1,\"name\":\"总公司\",\"children\":[{\"id\":2,\"name\":\"技术部\"},{\"id\":3,\"name\":\"市场部\"}]}]}"
+    },
+    {
+      "key": "GET /api/orders",
+      "summary": "订单分页",
+      "tag": "",
+      "status": "fail",
+      "http": 200,
+      "ms": 1,
+      "url": "http://127.0.0.1:59549/api/orders",
+      "sample": "{\"code\":500,\"msg\":\"数据库连接超时\",\"data\":null}",
+      "problem": "业务错误码 500：数据库连接超时"
+    },
+    {
+      "key": "GET /api/report/summary",
+      "summary": "报表汇总",
+      "tag": "",
+      "status": "warn",
+      "http": 200,
+      "ms": 3511,
+      "url": "http://127.0.0.1:59549/api/report/summary",
+      "sample": "{\"code\":0,\"msg\":\"ok\",\"data\":{\"orders\":128,\"amount\":35600}}",
+      "problem": "慢：3511 毫秒"
+    },
+    {
+      "key": "GET /api/export/{taskId}",
+      "summary": "导出结果",
+      "tag": "",
+      "status": "skip",
+      "problem": "缺参数 taskId（在 api.openapi.params 里给值就会测）"
+    }
+  ],
+  "apiCases": [
+    {
+      "name": "新增用户后能查到，删除后查不到",
+      "file": "用例/接口/用户接口.yaml",
+      "kind": "api",
+      "tags": [],
+      "desc": "",
+      "status": "pass",
+      "ms": 12,
+      "steps": [
+        {
+          "index": 1,
+          "kind": "api",
+          "title": "新增",
+          "status": "pass",
+          "ms": 6,
+          "detail": "POST http://127.0.0.1:59549/api/users → 200（5 毫秒）",
+          "response": "{\"code\":0,\"msg\":\"ok\",\"data\":{\"id\":6,\"username\":\"autotest_988607\",\"phone\":\"13900000000\",\"status\":1}}"
+        },
+        {
+          "index": 2,
+          "kind": "api",
+          "title": "详情能查到，字段和提交的一致",
+          "status": "pass",
+          "ms": 2,
+          "detail": "GET http://127.0.0.1:59549/api/users/6 → 200（2 毫秒）",
+          "response": "{\"code\":0,\"msg\":\"ok\",\"data\":{\"id\":6,\"username\":\"autotest_988607\",\"phone\":\"13900000000\",\"status\":1}}"
+        },
+        {
+          "index": 3,
+          "kind": "api",
+          "title": "按用户名搜得到",
+          "status": "pass",
+          "ms": 2,
+          "detail": "GET http://127.0.0.1:59549/api/users → 200（2 毫秒）",
+          "response": "{\"code\":0,\"msg\":\"ok\",\"data\":{\"records\":[{\"id\":6,\"username\":\"autotest_988607\",\"phone\":\"13900000000\",\"status\":1}],\"total\":1}}"
+        },
+        {
+          "index": 4,
+          "kind": "api",
+          "title": "删除",
+          "status": "pass",
+          "ms": 1,
+          "detail": "DELETE http://127.0.0.1:59549/api/users/6 → 200（1 毫秒）",
+          "response": "{\"code\":0,\"msg\":\"ok\",\"data\":true}"
+        },
+        {
+          "index": 5,
+          "kind": "api",
+          "title": "删除后详情查不到",
+          "status": "pass",
+          "ms": 1,
+          "detail": "GET http://127.0.0.1:59549/api/users/6 → 200（1 毫秒）",
+          "response": "{\"code\":1,\"msg\":\"用户不存在\"}"
+        }
+      ],
+      "cleanup": []
+    },
+    {
+      "name": "新增校验：缺用户名、手机号格式错、重名都要拦住（缺用户名）",
+      "file": "用例/接口/用户接口.yaml",
+      "kind": "api",
+      "tags": [],
+      "desc": "",
+      "status": "pass",
+      "ms": 4,
+      "steps": [
+        {
+          "index": 1,
+          "kind": "api",
+          "title": "api /api/users",
+          "status": "pass",
+          "ms": 4,
+          "detail": "POST http://127.0.0.1:59549/api/users → 200（4 毫秒）",
+          "response": "{\"code\":1,\"msg\":\"用户名不能为空\"}"
+        }
+      ],
+      "cleanup": []
+    },
+    {
+      "name": "新增校验：缺用户名、手机号格式错、重名都要拦住（手机号格式错）",
+      "file": "用例/接口/用户接口.yaml",
+      "kind": "api",
+      "tags": [],
+      "desc": "",
+      "status": "pass",
+      "ms": 1,
+      "steps": [
+        {
+          "index": 1,
+          "kind": "api",
+          "title": "api /api/users",
+          "status": "pass",
+          "ms": 1,
+          "detail": "POST http://127.0.0.1:59549/api/users → 200（1 毫秒）",
+          "response": "{\"code\":1,\"msg\":\"手机号格式不对\"}"
+        }
+      ],
+      "cleanup": []
+    },
+    {
+      "name": "新增校验：缺用户名、手机号格式错、重名都要拦住（重名）",
+      "file": "用例/接口/用户接口.yaml",
+      "kind": "api",
+      "tags": [],
+      "desc": "",
+      "status": "pass",
+      "ms": 2,
+      "steps": [
+        {
+          "index": 1,
+          "kind": "api",
+          "title": "api /api/users",
+          "status": "pass",
+          "ms": 2,
+          "detail": "POST http://127.0.0.1:59549/api/users → 200（1 毫秒）",
+          "response": "{\"code\":1,\"msg\":\"用户名已存在\"}"
+        }
+      ],
+      "cleanup": []
+    },
+    {
+      "name": "按状态筛选，结果里只有对应状态的人（停用）",
+      "file": "用例/接口/用户接口.yaml",
+      "kind": "api",
+      "tags": [],
+      "desc": "",
+      "status": "pass",
+      "ms": 1,
+      "steps": [
+        {
+          "index": 1,
+          "kind": "api",
+          "title": "api /api/users",
+          "status": "pass",
+          "ms": 1,
+          "detail": "GET http://127.0.0.1:59549/api/users → 200（1 毫秒）",
+          "response": "{\"code\":0,\"msg\":\"ok\",\"data\":{\"records\":[{\"id\":3,\"username\":\"lisi\",\"phone\":\"13800000003\",\"status\":0},{\"id\":5,\"username\":\"zhaoliu\",\"phone\":\"13800000005\",\"status\":0}],\"total\":2}}"
+        }
+      ],
+      "cleanup": []
+    },
+    {
+      "name": "按状态筛选，结果里只有对应状态的人（启用）",
+      "file": "用例/接口/用户接口.yaml",
+      "kind": "api",
+      "tags": [],
+      "desc": "",
+      "status": "fail",
+      "ms": 1,
+      "steps": [
+        {
+          "index": 1,
+          "kind": "api",
+          "title": "api /api/users",
+          "status": "fail",
+          "ms": 1,
+          "detail": "GET http://127.0.0.1:59549/api/users → 200（1 毫秒）",
+          "response": "{\"code\":0,\"msg\":\"ok\",\"data\":{\"records\":[{\"id\":1,\"username\":\"admin\",\"phone\":\"13800000001\",\"status\":1},{\"id\":2,\"username\":\"zhangsan\",\"phone\":\"13800000002\",\"status\":1},{\"id\":3,\"username\":\"lisi\",\"phone\":\"13800000003\",\"status\":0},{\"id\":4,\"username\":\"wangwu\",\"phone\":\"13800000004\",\"status\":1},{\"id\":5,\"username\":\"zhaoliu\",\"phone\":\"13800000005\",\"status\":0}],\"total\":5}}",
+          "error": "$.data.records 第 3 条不符合（共 5 条，2 条不符合）：status 应为 1，实际 0"
+        }
+      ],
+      "cleanup": [],
+      "error": "第 1 步「api /api/users」：$.data.records 第 3 条不符合（共 5 条，2 条不符合）：status 应为 1，实际 0"
+    },
+    {
+      "name": "没带令牌访问要被拒绝",
+      "file": "用例/接口/用户接口.yaml",
+      "kind": "api",
+      "tags": [],
+      "desc": "",
+      "status": "pass",
+      "ms": 1,
+      "steps": [
+        {
+          "index": 1,
+          "kind": "api",
+          "title": "api /api/users",
+          "status": "pass",
+          "ms": 1,
+          "detail": "GET http://127.0.0.1:59549/api/users → 401（1 毫秒）",
+          "response": "{\"code\":1,\"msg\":\"请先登录\"}"
+        }
+      ],
+      "cleanup": []
+    }
+  ],
+  "flows": [
+    {
+      "name": "页面上按「启用」筛选用户",
+      "file": "用例/功能/状态筛选.yaml",
+      "kind": "flow",
+      "tags": [],
+      "desc": "",
+      "status": "fail",
+      "ms": 967,
+      "steps": [
+        {
+          "index": 1,
+          "kind": "goto",
+          "title": "goto /#/system/user",
+          "status": "pass",
+          "ms": 160
+        },
+        {
+          "index": 2,
+          "kind": "choose",
+          "title": "choose #stv",
+          "status": "pass",
+          "ms": 722
+        },
+        {
+          "index": 3,
+          "kind": "click",
+          "title": "查询",
+          "status": "fail",
+          "ms": 85,
+          "detail": "GET /api/users?current=1&size=20&keyword=&status=1 → 200",
+          "response": "{\"code\":0,\"msg\":\"ok\",\"data\":{\"records\":[{\"id\":1,\"username\":\"admin\",\"phone\":\"13800000001\",\"status\":1},{\"id\":2,\"username\":\"zhangsan\",\"phone\":\"13800000002\",\"status\":1},{\"id\":3,\"username\":\"lisi\",\"phone\":\"13800000003\",\"status\":0},{\"id\":4,\"username\":\"wangwu\",\"phone\":\"13800000004\",\"status\":1},{\"id\":5,\"username\":\"zhaoliu\",\"phone\":\"13800000005\",\"status\":0}],\"total\":5}}",
+          "error": "$.data.records 第 3 条不符合（共 5 条，2 条不符合）：status 应为 1，实际 0",
+          "shot": "/Users/shan/.workbuddy/skills/web-autotest/examples/演示系统/autotest-report/demo/shots/页面上按「启用」筛选用户-第3步失败.png"
+        },
+        {
+          "index": 4,
+          "kind": "js",
+          "title": "js [...document.querySelectorAll('#tbl td.status')].map(td => t",
+          "status": "skip",
+          "ms": 0
+        }
+      ],
+      "cleanup": [],
+      "error": "第 3 步「查询」：$.data.records 第 3 条不符合（共 5 条，2 条不符合）：status 应为 1，实际 0"
+    },
+    {
+      "name": "页面上新增、搜索、删除用户",
+      "file": "用例/功能/用户管理.yaml",
+      "kind": "flow",
+      "tags": [],
+      "desc": "",
+      "status": "pass",
+      "ms": 2230,
+      "steps": [
+        {
+          "index": 1,
+          "kind": "goto",
+          "title": "goto /#/system/user",
+          "status": "pass",
+          "ms": 186
+        },
+        {
+          "index": 2,
+          "kind": "click",
+          "title": "click 按钮:新增",
+          "status": "pass",
+          "ms": 199
+        },
+        {
+          "index": 3,
+          "kind": "fill",
+          "title": "fill {\"提示:用户名\":\"ui_${rand}\",\"提示:手机号\":\"13700000000\"}",
+          "status": "pass",
+          "ms": 161
+        },
+        {
+          "index": 4,
+          "kind": "click",
+          "title": "保存，等新增接口成功",
+          "status": "pass",
+          "ms": 189,
+          "detail": "POST /api/users → 200",
+          "response": "{\"code\":0,\"msg\":\"ok\",\"data\":{\"id\":7,\"username\":\"ui_989995\",\"phone\":\"13700000000\",\"status\":1}}"
+        },
+        {
+          "index": 5,
+          "kind": "expectToast",
+          "title": "expectToast 新增成功",
+          "status": "pass",
+          "ms": 158
+        },
+        {
+          "index": 6,
+          "kind": "fill",
+          "title": "fill {\"提示:请输入用户名\":\"${uname}\"}",
+          "status": "pass",
+          "ms": 158
+        },
+        {
+          "index": 7,
+          "kind": "click",
+          "title": "搜索，列表接口只回一条",
+          "status": "pass",
+          "ms": 183,
+          "detail": "GET /api/users?current=1&size=20&keyword=ui_989995 → 200",
+          "response": "{\"code\":0,\"msg\":\"ok\",\"data\":{\"records\":[{\"id\":7,\"username\":\"ui_989995\",\"phone\":\"13700000000\",\"status\":1}],\"total\":1}}"
+        },
+        {
+          "index": 8,
+          "kind": "expectText",
+          "title": "expectText #tbl",
+          "status": "pass",
+          "ms": 160
+        },
+        {
+          "index": 9,
+          "kind": "expectCount",
+          "title": "expectCount #tbl tr",
+          "status": "pass",
+          "ms": 155
+        },
+        {
+          "index": 10,
+          "kind": "screenshot",
+          "title": "screenshot 搜到新用户",
+          "status": "pass",
+          "ms": 183,
+          "shot": "/Users/shan/.workbuddy/skills/web-autotest/examples/演示系统/autotest-report/demo/shots/页面上新增、搜索、删除用户-10-搜到新用户.png"
+        },
+        {
+          "index": 11,
+          "kind": "click",
+          "title": "删除（确认框自动点确定）",
+          "status": "pass",
+          "ms": 184,
+          "detail": "DELETE /api/users/7 → 200",
+          "response": "{\"code\":0,\"msg\":\"ok\",\"data\":true}"
+        },
+        {
+          "index": 12,
+          "kind": "expectToast",
+          "title": "expectToast 删除成功",
+          "status": "pass",
+          "ms": 156
+        },
+        {
+          "index": 13,
+          "kind": "expectNoText",
+          "title": "expectNoText #tbl",
+          "status": "pass",
+          "ms": 154
+        }
+      ],
+      "cleanup": [
+        {
+          "index": 1,
+          "kind": "api",
+          "title": "api /api/users/${uid}",
+          "status": "pass",
+          "ms": 4,
+          "detail": "DELETE http://127.0.0.1:59549/api/users/7 → 200（4 毫秒）",
+          "response": "{\"code\":1,\"msg\":\"用户不存在\"}"
+        }
+      ]
+    }
+  ],
+  "apis": [
+    {
+      "key": "GET /api/orders",
+      "method": "GET",
+      "path": "/api/orders",
+      "count": 1,
+      "statuses": {
+        "200": 1
+      },
+      "bad": 1,
+      "maxMs": 3,
+      "problems": [
+        "业务错误码 500：数据库连接超时"
+      ],
+      "pages": [],
+      "sample": "{\"code\":500,\"msg\":\"数据库连接超时\",\"data\":null}",
+      "exampleUrl": "http://127.0.0.1:59549/api/orders?current=1&size=10"
+    },
+    {
+      "key": "GET /api/roles",
+      "method": "GET",
+      "path": "/api/roles",
+      "count": 1,
+      "statuses": {
+        "500": 1
+      },
+      "bad": 1,
+      "maxMs": 1,
+      "problems": [
+        "接口返回 500"
+      ],
+      "pages": [],
+      "sample": "{\"timestamp\":1793061137218,\"status\":500,\"error\":\"Internal Server Error\",\"path\":\"/api/roles\"}",
+      "exampleUrl": "http://127.0.0.1:59549/api/roles"
+    },
+    {
+      "key": "DELETE /api/users/{id}",
+      "method": "DELETE",
+      "path": "/api/users/{id}",
+      "count": 1,
+      "statuses": {
+        "200": 1
+      },
+      "bad": 0,
+      "maxMs": 15,
+      "problems": [],
+      "pages": [],
+      "sample": "{\"code\":0,\"msg\":\"ok\",\"data\":true}",
+      "exampleUrl": "http://127.0.0.1:59549/api/users/7"
+    },
+    {
+      "key": "GET /api/dept/tree",
+      "method": "GET",
+      "path": "/api/dept/tree",
+      "count": 1,
+      "statuses": {
+        "200": 1
+      },
+      "bad": 0,
+      "maxMs": 1,
+      "problems": [],
+      "pages": [],
+      "sample": "{\"code\":0,\"msg\":\"ok\",\"data\":[{\"id\":1,\"name\":\"总公司\",\"children\":[{\"id\":2,\"name\":\"技术部\"},{\"id\":3,\"name\":\"市场部\"}]}]}",
+      "exampleUrl": "http://127.0.0.1:59549/api/dept/tree"
+    },
+    {
+      "key": "GET /api/menu",
+      "method": "GET",
+      "path": "/api/menu",
+      "count": 3,
+      "statuses": {
+        "200": 3
+      },
+      "bad": 0,
+      "maxMs": 13,
+      "problems": [],
+      "pages": [],
+      "sample": "{\"code\":0,\"msg\":\"ok\",\"data\":[{\"name\":\"首页\",\"path\":\"/home\"},{\"name\":\"系统管理\",\"path\":\"/system\",\"children\":[{\"name\":\"用户管理\",\"path\":\"user\"},{\"name\":\"角色管理\",\"path\":\"role\"},{\"name\":\"部门管理\",\"path\":\"dept\"},{\"name\":\"菜单管理\",\"path\":\"menu\"}]},{\"name\":\"业务中心\",\"path\":\"/biz\",\"children\":[{\"name\":\"订单列表\",\"path\":\"order\"},{\"na",
+      "exampleUrl": "http://127.0.0.1:59549/api/menu"
+    },
+    {
+      "key": "GET /api/report/summary",
+      "method": "GET",
+      "path": "/api/report/summary",
+      "count": 1,
+      "statuses": {
+        "200": 1
+      },
+      "bad": 0,
+      "maxMs": 3523,
+      "problems": [],
+      "pages": [],
+      "sample": "{\"code\":0,\"msg\":\"ok\",\"data\":{\"orders\":128,\"amount\":35600}}",
+      "exampleUrl": "http://127.0.0.1:59549/api/report/summary"
+    },
+    {
+      "key": "GET /api/users",
+      "method": "GET",
+      "path": "/api/users",
+      "count": 7,
+      "statuses": {
+        "200": 7
+      },
+      "bad": 0,
+      "maxMs": 15,
+      "problems": [],
+      "pages": [],
+      "sample": "{\"code\":0,\"msg\":\"ok\",\"data\":{\"records\":[{\"id\":1,\"username\":\"admin\",\"phone\":\"13800000001\",\"status\":1},{\"id\":2,\"username\":\"zhangsan\",\"phone\":\"13800000002\",\"status\":1},{\"id\":3,\"username\":\"lisi\",\"phone\":\"13800000003\",\"status\":0},{\"id\":4,\"username\":\"wangwu\",\"phone\":\"13800000004\",\"status\":1},{\"id\":5,\"user",
+      "exampleUrl": "http://127.0.0.1:59549/api/users?current=1&size=20&keyword="
+    },
+    {
+      "key": "POST /api/users",
+      "method": "POST",
+      "path": "/api/users",
+      "count": 1,
+      "statuses": {
+        "200": 1
+      },
+      "bad": 0,
+      "maxMs": 13,
+      "problems": [],
+      "pages": [],
+      "sample": "{\"code\":0,\"msg\":\"ok\",\"data\":{\"id\":7,\"username\":\"ui_989995\",\"phone\":\"13700000000\",\"status\":1}}",
+      "exampleUrl": "http://127.0.0.1:59549/api/users"
+    }
+  ],
+  "summary": {
+    "menus": {
+      "total": 9,
+      "pass": 4,
+      "warn": 1,
+      "fail": 4,
+      "skip": 0
+    },
+    "apis": {
+      "total": 8,
+      "fail": 2,
+      "pass": 6
+    },
+    "openapi": {
+      "total": 9,
+      "pass": 4,
+      "warn": 1,
+      "fail": 2,
+      "skip": 2
+    },
+    "apiCases": {
+      "total": 7,
+      "pass": 6,
+      "warn": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "flows": {
+      "total": 2,
+      "pass": 1,
+      "warn": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "failed": 10
+  }
+}

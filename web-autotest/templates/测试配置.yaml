@@ -1,0 +1,63 @@
+# 自动化测试配置。改好地址和登录就能先跑菜单巡检：
+#   node <技能目录>/scripts/autotest.js run 测试配置.yaml
+# 账号密码别写死在这里，用环境变量：${env.TEST_USER}
+
+name: 我们的后台                     # 报告标题
+baseUrl: http://localhost:8080      # 被测系统的网址（前端）
+
+# ---------- 登录（三种选一种，或组合） ----------
+login:
+  # 方式一：在登录页上填表（最通用，验证码要先在测试环境关掉或写死）
+  steps:
+    - goto: /#/login
+    - fill: { 提示:请输入用户名: "${env.TEST_USER}", 提示:请输入密码: "${env.TEST_PASSWORD}" }
+    - click: 按钮:登录
+    - expectUrl: /home               # 登录成功后会跳到的网址里的一段
+  # 方式二：调登录接口拿令牌，再放进浏览器（前端从 localStorage 读令牌时用）
+  # api:
+  #   method: POST
+  #   url: /api/auth/login
+  #   json: { username: "${env.TEST_USER}", password: "${env.TEST_PASSWORD}" }
+  #   save: { token: $.data.token }
+  # localStorage:
+  #   token: ${token}
+
+# ---------- 接口 ----------
+api:
+  base: http://localhost:8080        # 接口地址，和前端不同域时写；同域可删
+  # headers:                         # 每个接口请求都带的头（接口用例、接口文档逐个调时用）
+  #   Authorization: Bearer ${token}
+  # 后端出错也回 200、把错误写在返回的 code 里的，要写这条，不然查不出业务错误
+  business: { path: $.code, ok: [0, 200], msgPath: $.msg }
+  # 有接口文档（Swagger / OpenAPI）就打开，查询类接口会逐个调一遍
+  # openapi:
+  #   url: /v3/api-docs
+  #   methods: [GET]                 # 默认只调查询类，不碰增删改
+  #   params: { id: 1 }              # 路径里 {id} 这类参数的取值
+  #   exclude: [/actuator, /export]
+  #   slowMs: 3000
+  cases: 用例/接口/*.yaml
+
+# ---------- 菜单巡检 ----------
+menus:
+  start: /#/home                     # 登录后能看到菜单的页面
+  # source: dom                      # dom=点页面上的菜单（默认）；api=从菜单接口取；list=下面写死
+  exclude: [退出, 登出, 注销]          # 不点的菜单（名字或网址含这些字）
+  slowMs: 5000                       # 打开超过这么久记「注意」
+  # errorTexts: [404, 页面不存在, 系统异常]   # 页面上出现就算错误页
+  # 菜单接口取法（顶部菜单、折叠菜单点不动时用）：
+  # source: api
+  # api: { request: { url: /admin/menu }, list: $.data, name: name, path: path, children: children }
+  # routePrefix: /#                  # 哈希路由写 /#，普通路由留空
+
+# ---------- 功能用例 ----------
+flows: 用例/功能/*.yaml
+
+# checks:
+#   ignoreRequests: [/websocket, 统计埋点]    # 这些请求出错不算
+#   ignoreConsole: [ResizeObserver]
+#   failOnConsoleError: false
+
+# browser:
+#   channel: chrome                  # 用本机装的 Chrome（不用另下浏览器）
+#   viewport: [1440, 900]

@@ -1,0 +1,40 @@
+{
+  "project": "",
+  "version": "",
+  "purpose": "验收",
+  "scope": "全部源代码和随附文档",
+  "date": "",
+  "auditor": "",
+  "basis": [],
+  "summary": "",
+  "verdict": "",
+  "requirements": [
+    {"id": "R1", "text": "", "status": "已实现", "where": "", "note": ""}
+  ],
+  "issues": [
+    {"id": "M01", "dim": "安全", "level": "高", "title": "", "req": "", "where": [], "detail": "", "impact": "", "fix": ""}
+  ],
+  "autoReview": [
+    {"rule": "", "verdict": "", "reason": ""}
+  ],
+  "deliverables": [
+    {"item": "需求或设计文档", "status": "待核", "note": ""},
+    {"item": "用户使用手册", "status": "待核", "note": ""},
+    {"item": "部署手册", "status": "待核", "note": ""},
+    {"item": "接口文档", "status": "待核", "note": ""},
+    {"item": "数据库脚本", "status": "待核", "note": ""},
+    {"item": "构建和启动脚本", "status": "待核", "note": ""},
+    {"item": "配置样例", "status": "待核", "note": ""},
+    {"item": "自动化测试", "status": "待核", "note": ""},
+    {"item": "测试报告", "status": "待核", "note": ""},
+    {"item": "版本说明", "status": "待核", "note": ""},
+    {"item": "README", "status": "待核", "note": ""},
+    {"item": "许可证和第三方声明", "status": "待核", "note": ""}
+  ],
+  "checks": [
+    {"item": "按说明构建通过", "result": "未做", "note": ""},
+    {"item": "自动化测试全部通过", "result": "未做", "note": ""},
+    {"item": "按部署手册在干净环境装起来", "result": "未做", "note": ""},
+    {"item": "主要业务流程走通", "result": "未做", "note": ""}
+  ]
+}

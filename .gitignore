@@ -1,0 +1,14 @@
+# Dependencies (reinstall locally with npm install / pip install when needed)
+node_modules/
+__pycache__/
+.venv/
+venv/
+dist/
+build/
+
+# OS noise
+.DS_Store
+*.pyc
+
+# WorkBuddy per-device state (each machine keeps its own migration record)
+_bm_skillid_migration.json

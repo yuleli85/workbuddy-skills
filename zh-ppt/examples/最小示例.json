@@ -1,0 +1,26 @@
+{
+  "title": "页型一览",
+  "theme": "商务蓝",
+  "footer": "页型一览 · 示例",
+  "slides": [
+    { "type": "cover", "title": "页型一览", "subtitle": "每种页型各一页，照着改就能用", "icon": "FaLayerGroup", "meta": "示例 · 2026 年" },
+    { "type": "statement", "text": "一页只说一件事，**标题就是结论**", "sub": "看完标题就知道这页要说什么，正文只负责支撑它。" },
+    { "type": "bullets", "title": "要点页：适合讲道理、列条件",
+      "items": ["先给结论，再给理由", { "text": "每条一句话，控制在 30 字内", "sub": ["超了就拆成两条", "或者换成卡片页"] }, "重点用 **两个星号** 包起来"],
+      "callout": "要点不超过 **6 条**",
+      "notes": "这里写演讲备注，放映时只有讲的人看得到。" },
+    { "type": "cards", "title": "卡片页：3 张大卡", "items": [
+      { "name": "快", "desc": "一份稿子几秒出图", "icon": "FaBolt" },
+      { "name": "稳", "desc": "字多自动缩，放不下会提醒", "icon": "FaShieldAlt", "key": true },
+      { "name": "好改", "desc": "出来的是普通 PPT，PowerPoint、WPS 都能直接改", "icon": "FaEdit" } ],
+      "legend": "橙色是重点" },
+    { "type": "flow", "title": "流程页：带说明的四步", "steps": [
+      { "name": "写稿子", "desc": "按页型写 JSON" }, { "name": "生成", "desc": "一条命令出 PPT" },
+      { "name": "出图核对", "desc": "逐页看有没有挤", "key": true }, { "name": "交付", "desc": "发 PPT，要时附 PDF" } ],
+      "note": "没写图标时圈里显示序号。" },
+    { "type": "image", "title": "图片页：截图按比例放大居中", "path": "示例截图.png", "caption": "图注写在这里" },
+    { "type": "custom", "title": "自定义页：页型里没有的自己画", "script": "自定义页.js",
+      "values": [ { "name": "一次通过率", "value": 72 }, { "name": "技能命中率", "value": 55 }, { "name": "返工率", "value": 18 } ] },
+    { "type": "closing", "title": "谢谢", "subtitle": "有问题随时找我" }
+  ]
+}
