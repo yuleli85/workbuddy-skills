@@ -1,6 +1,6 @@
 ---
 name: linmo-finance-agent-no-data-triage
-description: 排查灵猫企管（linmo-pig-full）「财务智能体没有数据 / 该账套尚未生成真实财务报告 / dashboard/refresh 返回 PYTHON_RESULT_UNVERIFIED」并修到「能定位到唯一剩余阻塞」。覆盖五层：L0 账套 OpenAPI 429 限流（最常见、最快判据）、L1 编码登记 SQL 守卫错配（静默 no-op）、L2 ai_app_config 无 Key/未启用、L3 Dify 工作流 HTTP 节点指向已下线主机、L4 上游账套系统迁址。触发词：财务智能体没有数据 / 财务页面空 / 该账套尚未生成真实财务报告 / PYTHON_RESULT_UNVERIFIED / finance-data-v2 / 账套授权核验失败 / 429。
+description: 排查灵猫企管（linmo-pig-full）「财务智能体没有数据 / 该账套尚未生成真实财务报告 / dashboard/refresh 返回 PYTHON_RESULT_UNVERIFIED」并修到「能定位到唯一剩余阻塞」。覆盖六层：L0 账套 OpenAPI 429 限流（最常见、最快判据）、L1 编码登记 SQL 守卫错配（静默 no-op）、L2 ai_app_config 无 Key/未启用、L3 Dify 工作流 HTTP 节点指向已下线主机、L4 上游账套系统迁址、L5 聚合节点现金流校验口径错配（净额+截止日 vs 整月毛额，节点全绿也必空）。触发词：财务智能体没有数据 / 财务页面空 / 该账套尚未生成真实财务报告 / PYTHON_RESULT_UNVERIFIED / finance-data-v2 / 账套授权核验失败 / 429 / cash movement mismatch / CASH_FLOW_UNVERIFIED。
 agent_created: true
 ---
 
@@ -205,6 +205,45 @@ $PSQL "$DSN" -A -F$'\t' -c "SELECT status,COUNT(*),MIN(created_at),MAX(created_a
 ② Dify 主机（192.168.110.172）能否访问它；③ 谁改 Dify 工作流并发布。
 
 ---
+
+## L5 — 聚合节点现金流校验口径错配（**2026-10-31 新增：这是「一直没数据」的真因**）
+
+L0~L4 全绿、`refresh` 返回 200、16 个节点全 succeeded，页面照样空 ⇒ 怀疑本层。
+
+**判据（一票）**：节点 15「核对金额、整理角色指标与异常」的输出里 `checks` 为
+`cash_balance=true, cash_inflow=false, cash_outflow=false`，且卡片只剩 2 张
+`today_receipts / today_payments` 全 `pending`、`cash_flow.points=[]`、alerts 有 `CASH_FLOW_UNVERIFIED`。
+
+**根因**：代码用「凭证**净额**、截止 `as_of`」去和总览 `funds.inflow/outflow` 做**硬相等**，而总览是
+「**整月毛额**」。两处系统性差额：
+1. 内部转账（现金↔银行，同一凭证同时有 1001/1002）被 `net=debit-credit` 对冲成 0，总览却双边各记一次；
+   2026-10-31 实测 4 笔「提取本周备用金」各 2,000 = 8,000；
+2. `as_of` 截止日之后的凭证被排除，总览按整月统计（实测 10-31 付出 559）。
+
+⇒ 永远不相等 ⇒ `raise 'cash movement mismatch'` ⇒ `cash_flow` 永久 `pending` ⇒ 空态。
+
+**定性复算（30 秒）**：拿该 run 节点 12/13（`operations`/`month_operations`）的 `body.data.rows`，按
+`Σdebit(1001/1002) / Σcredit(1001/1002)`、区间 `month_start..month_end` 求和，应**分毫不差**等于
+`overview.funds.inflow/outflow`。对不上才需要怀疑上游数据本身。
+
+**离线回放验证（改代码前必做，比发布后试快 10 倍）**：把节点 15 的 `graph->nodes[].data.code` 导出成 `.py`，
+`exec` 后调用 `main(context_json=节点2的 context_json, <source>_status=200, <source>_body=节点N的 body)`，
+source 依次为 `books(3) overview(5) balance(7) trial(8) operations(12) month_operations(13)`。
+原版应复现 `partial`，补丁版应得 `ready`。
+
+**修法**（三处，改完必须**发布** draft）：
+```python
+month_in_gross = month_out_gross = 0                       # 新增
+if ctx['month_start'] <= voucher_date <= ctx['month_end']:  # 整月
+    month_in_gross += debit; month_out_gross += credit      # 毛额
+inflow_ok  = month_in_gross  == cents(overview['funds']['inflow'])
+outflow_ok = month_out_gross == cents(overview['funds']['outflow'])
+```
+并把内部转账单列进 `supplemental_facts`（否则用户会问「趋势图里怎么没有这笔」）。
+可粘贴成品见 `linmo-pig-full/output/finance-node15-patched-20261031.py`。
+
+⚠️ 当前发布版聚合代码**只产 2 张卡**（今日收/付）+ 90 天趋势；历史出现过的 6 张卡
+（区间账面利润/营业成本/可用现金…）不在这一版里，别拿旧截图比对来误判「又坏了」。
 
 ## 收尾必做
 

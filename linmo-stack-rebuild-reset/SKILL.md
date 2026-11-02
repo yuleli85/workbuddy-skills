@@ -19,12 +19,23 @@ agent_created: true
 
 ### 🔴 0.0 先确认你操作的是哪个副本（2026-10-12 实测，差点在错目录上重建）
 
-本机同时存在 **4 个 linmo-pig-full 克隆**，Docker 栈只认其中一个：
+🔴🔴 **2026-11-01 订正：运行栈副本会换，别照抄任何固定路径。** 本机已出现 **5 个** linmo-pig-full 克隆，
+「哪个是 compose 工作目录」**每轮都可能变**（实测序列：`work/` → `works/` → **`WorkBuddy-tasks/`**）。
+**唯一权威判据 = 容器 label**（开工第一条命令）：
+
+```bash
+/Applications/Docker.app/Contents/Resources/bin/docker inspect linmo-pig-boot \
+  --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'
+# 2026-11-01 实测输出：/Users/shan/WorkBuddy-tasks/linmo-pig-full/deploy
+```
+
+拿到后 `cd` 到它的上一层，后续一切命令（含 `git fetch`）都在那儿跑。
 
 | 目录 | 分支 | 是不是 compose 工作目录 |
 |---|---|---|
-| **`/Users/shan/work/linmo-pig-full`** | **`dev`**（2026-10-15 复核；`feature/liyuying-client` 已于 10-14 回退） | ✅ 是（本文所有命令都在此执行） |
-| `/Users/shan/works/linmo-pig-full` | **`dev`** | ❌ 非 compose 工作目录，但是**活跃开发副本 / 记忆主目录**（`pig/db` 收敛 6 合并脚本、三端死文件清理等都出自这里） |
+| **`/Users/shan/WorkBuddy-tasks/linmo-pig-full`** | **`dev`** | ✅ **2026-11-01 实测是**（以容器 label 为准，下轮可能变） |
+| `/Users/shan/work/linmo-pig-full` | `dev` | ❓ 曾长期是（10-12~10-29），现非 |
+| `/Users/shan/works/linmo-pig-full` | `dev` | ❓ 曾短期是（10-30/10-31），也是**记忆主目录 / 会话 cwd** |
 | `/Users/shan/dev-full/linmo-pig-full` | `liyuying-full` | ❌ |
 | `/Users/shan/work/pig/linmo-pig-full` | `main` | ❌ |
 
@@ -55,6 +66,31 @@ docker compose --env-file .env.liyuying --env-file .env -f docker-compose-liyuyi
 此时 v1 单独 `up` 必然让后端连不上库；务必先做 ①。判据：`docker ps -a` / `docker compose ls -a` 均为空、`docker network ls` 里 `deploy_backend` 仍在。
 ⚠️ `deploy/.env` 里的 `TAG` 只有**镜像版**消费，但 ① 的 `${TAG:-54}DB` 也要它 ⇒ 起 mysql 前先确认 `TAG=267`（54 已失效）。
 ⚠️ 用户给的 `>> .env` 追加命令若键已存在会造成重复行 ⇒ 先 `sed -E 's/=.*/=<hidden>/' .env` 看现状，**已存在就别再追加**。
+
+#### 🔴 0.0c-1 私仓 DB 镜像不在本机时，① 的手工替代（2026-10-30 实测，比 ① 更快）
+
+`docker-compose.yml` 的 mysql 用的是 `192.168.110.172:8443/team/linmo-pig:${TAG}DB`（`TAG=268`）。
+该**私仓 amd64 镜像本机可能根本不存在**（`docker images` 只剩 `linmo/pig-mysql:8.0` 等本地构建镜像），
+此时 ① 会因拉不到镜像而卡住/失败。而 v1 栈**只认容器名 `deploy-mysql-1` + `deploy_backend` 网络**，
+不关心镜像来源 ⇒ 直接用本地 `linmo/pig-mysql:8.0` 手起同名容器即可，等价：
+
+```bash
+docker run -d --name deploy-mysql-1 \
+  --network deploy_backend --network-alias mysql \
+  -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=pig \
+  -e MYSQL_USER=yule -e MYSQL_PASSWORD=yule123 -e TZ=Asia/Shanghai \
+  -v linmo-mysql-data:/var/lib/mysql --restart unless-stopped \
+  linmo/pig-mysql:8.0 --lower_case_table_names=1
+```
+
+- **「是否重放了 initdb」用健康耗时判断**：复用已有数据目录 ⇒ **约 12s healthy**；
+  重新建库导 6 个脚本 ⇒ 25~40s（此时才需要等 `初始化完成` 日志，见 §0.0d）。
+- `--lower_case_table_names=1` 必须带，且要与卷初始化时一致（该卷由本镜像建过，故一致）。
+- 起完立刻验数据在不在：`select count(*) from information_schema.tables where table_schema='pig'`
+  （正常 300+ 表）＋ `pig_dw.ods_xdy_*` 行数。
+- ② ③ 同理**别加 `--build`**：镜像 `linmo/pig-boot:1.0.0` / `linmo/pig-ui` / `linmo/pig-pc-ui` /
+  `linmo/python-ai-service:1.2.0` 都在本机，`up -d` 直接复用，pig-boot 约 25s healthy；
+  加了 `--build` 会把恢复拖成十几分钟且可能引入未验证的新代码。
 
 ### 🔴 0.0d DB 卷被重建后：**别在 initdb 导入完成前读 information_schema**（2026-10-15 实测，差点误报「数据丢失」）
 
@@ -205,6 +241,7 @@ for f in <未跟踪文件…>; do diff -q "$f" <(git show origin/dev:"<path>") >
 ```
 - 有差异的多半是**早期版**（实例：`deploy/docker-compose.dev.yml` 缺后补的 6 个 `XDY_*`）⇒ 同样丢弃，ff 会给到新版。
 - 未跟踪目录不删就 ff 会报 `untracked working tree files would be overwritten`。
+- 🔴 **远端 env 脱跟踪后 ff 会「物理丢」env 文件**（2026-10-27 实测）：远端安全提交把 `deploy/.env.dev`/`.env.liyuying` 等 `git rm --cached` 后，若本地工作区那份也被删/未生成，ff 后 `ls deploy/.env*` 就缺文件 ⇒ `compose build/up` 直接报 `couldn't find env file`。处置：ff **前**先 `cp` 备份全部在用 env 到 `$HOME`；ff 后 `ls deploy/.env*` 核对命令行引用的每个 env-file 都在，缺了从备份（`~/.linmo-bak/r*/`、`~/.env-bak-*`）恢复并 `git check-ignore` 确认不入库。另：`git ls-tree origin/dev -- <path>` 对**不存在的路径也返回 0** ⇒ 判「远端是否真有此文件」必须 `git ls-tree -r origin/dev --name-only | grep -Fx <path>`，不能靠退出码。
 - **日报不能只看行数**：分别取 `<运行栈版>` 与 `git show origin/dev:<该文件>`，按 `^## ` 切段后做两道判据 ——
   ① 段落**标题集合**差集（`comm -23`）必须为空；② 逐行摘出「非空且非标题」的行，确认都能在提交版**对应段落**里找到子串。
   **两项都 0 缺失**才允许由提交版替代（2026-10-14 实测 663 行/44 段 vs 713 行/47 段，均 0 缺失）。动手前先把运行栈版 `cp` 到 `output/` 备份。
@@ -291,6 +328,26 @@ SQL
 
 ## 0.5 先做增量判断（**动手前必做，能省掉 90% 的无谓重建**）
 
+> 🆕 2026-10-28 两条直接决定「重建范围 / 排障方向」的判例（先读这两条再看四个判据）：
+> 1. **按变更面定范围，别一律全量重建**：`git diff --name-only HEAD..origin/dev | sed -E 's#^(([^/]+/)?[^/]+).*#\1#' | sort | uniq -c | sort -rn`。
+>    只碰 `pig/**`（含 `pig-boot/pom.xml`——可能改资源拷贝/排除规则）⇒ 只 `build pig-gateway`；
+>    前端三端与 `python-ai-service` 零变更时重建它们是**纯空操作**（镜像内容没变）。实测 11 提交只动
+>    `pig/db` + `DbUpgradeService` + pom ⇒ 只重建后端，前端/Python 镜像原样复用，验收照过。
+> 2. **排障先看容器是不是被别人清了**：后端起不来报 `UnknownHostException: deploy-mysql-1` /
+>    `Communications link failure` 时，**第一动作是 `docker ps -a` + `docker events --since 15m
+>    --filter event=destroy`**，不是去查代码 —— 并行会话/自动任务会整栈 kill+destroy（连
+>    `linmo-net` 一起删）再另起临时 mysql 容器。起自己的 mysql 前**必须 `docker inspect` 确认对方
+>    挂的是不是同一个卷**：两个 mysqld 同写一个 datadir 会毁库；对方挂独立快照卷（如
+>    `tm-mysql-snap-*`）才安全。恢复顺序仍是 mysql → redis → boot → 其余（`--force-recreate --no-deps`）。
+> 3. zsh 里别写 `C="docker compose ... --profile pcui"` 再 `$C up`（zsh 不做 word splitting ⇒
+>    整串当命令名，报 `command not found`），命令写全。
+> 4. 🔴 **「零源码入站」≠「不用重打 MySQL 镜像」**（2026-11-01 实测）：一轮 ff 进来 8 提交、只有
+>    `.workbuddy/memory`(17) + `docs`(1)，4 个服务镜像全 CACHED、容器↔镜像 md5 2/2 SAME（「重新构建」确实是空操作）；
+>    但 **`pig/merged/03_menu_perm.sql` 当天 07:03 被并行会话重生成过**（`initdb-loader.sh` 也变了），
+>    MySQL 镜像里还是 10-31 的旧版 ⇒ **重置前必须逐文件 md5 校验 `pig/merged/0*.sql` + loader 与镜像**，
+>    有 DIFF 就地 `docker build -t linmo/pig-mysql:8.0 pig/merged`（上下文是 `pig/merged`，不是 `pig/db`）。
+>    ⇒ 判据顺序固定为：**先判服务镜像（按源码 diff）→ 再单独判 MySQL 镜像（按 merged 内容）→ 才允许删卷**。
+
 自动化/用户说「重新构建 + 重置数据库 + 重启，让新代码立即生效」时，**先证明"没生效"，再动手**。四个判据：
 
 ```bash
@@ -365,6 +422,18 @@ done | wc -l | xargs echo "差异文件数="'
   实际带入 `OpsAgentController.java(+57)` + 新增 `OpsCommitPersonService/Mapper(+XML)`，而按普通日志看只像「记忆文件合并」⇒
   「后端零改动、boot 不用重建」的结论直接错。**判镜像落后时必须逐 merge 做 `git diff <merge>^1 <merge> --stat`**，
   或直接 `git log --since=<镜像时刻> --full-history -m --name-only`。
+  ✅ **2026-10-31 定型的最简可靠写法（优先用这条，别去枚举 merge）**：直接对「镜像构建时刻对应的 commit」到 `origin/dev` 做一次
+  **整段 diff** 并按顶层目录计数 —— `git diff` 天然展开 merge 带入的全部文件：
+  ```bash
+  git diff --name-only <构建基线commit>..origin/dev | sed -E 's#^(([^/]+/)?[^/]+).*#\1#' | sort | uniq -c | sort -rn
+  # 本轮实测：pig/pig-ops 66 / pig-pc-ui/src 42 / pig/pig-ai-adapter 17 ⇒ 只重建 pig-gateway + pig-pc-ui
+  #          零出现的目录（pig-ui / python-ai-service / pig/db）⇒ 一律不重建
+  ```
+  注意格式字符串中 `(([^/]+/)?[^/]+)` 要写成 `(([^/]+/)?[^/]+)` 原样，**别漏掉内层分组**。
+  🔴 **计数后要按目录映射镜像并排除噪声目录**（2026-11-01 实测）：`pig/**`→pig-gateway、
+  `pig-{ui,pc-ui,mob-ui}/src`→对应前端、`python-ai-service/app`→python-ai、`pig/db`→增量落库（不重置时）。
+  **`deploy/dev/**` 是他机 env/编排（本轮 57 个文件，计数第一），与本机构建无关，必须排除**，
+  否则会误判「变更面巨大」而做无谓的全量重建。同理 `docs/` `.workbuddy/` `output/` `CHANGELOG.md` 都不计数。
 - 🔴 **「git 提交时间戳」不是有效判据**（2026-10-10 实测证伪）：当天提交层 `44e4f4f0→35125fc3` 的差异**只有 `.workbuddy`/`docs`/`output`**（零源码），若只看它必误判「无需重建」，实际同时漏掉两类落后 ——
   **(a) 未提交在途源码**（并行会话「pc 端七类彻底七分」改了 `AgentReport.vue` + `agents/registry.ts` + `agents/specs/*.ts` 但尚未 commit）、
   **(b) 镜像内脚本内容漂移**（`ui_audit_menu_fix_20261009.sql` md5 DIFF，镜像 124 vs 宿主 125）。
@@ -375,6 +444,11 @@ done | wc -l | xargs echo "差异文件数="'
   git status --short          # 未提交在途 ≠ 阻塞「重建/重启」，只阻塞「重置库」与「git 提交」
   ```
   ⚠️ **判定「在途 ⇒ 需重建」后，必须在报告里显式标注该源码尚未提交** —— 重建会把半成品带上线（2026-10-10 实例：pc-ui `eb52af478b31` 即含未提交的七分重构），复验责任交回用户。
+- 🔴 **「checkout+ff 后要不要把 WIP 拷回来」的三条判据（2026-10-28 定型，覆盖 10-20「一律丢」与 10-27「在线就留」两个旧判例）**：
+  1. **上游是否已显式回退该在途改动**（`git log --oneline --grep 'revert' -- <文件>`）⇒ 已 revert（如 `54685b1f` 撤回并行会话在途改动）说明**维护者明确不接纳**，不要拷回；
+  2. **拷回会不会反向丢远端新提交** —— 本地文件基于旧 HEAD 时，`cp` 回去等于**把远端在它之后合入的改动（典型：安全加固）整体回滚**（2026-10-28 实例：python-ai `app/main.py` 会抹掉 `d321a64c`/`1a7400cd`/`5eb5a634` 三批加固）。判法：对该文件比 `git log <ff后HEAD> -- <f>` 与本地 mtime 之后的提交；
+  3. 只有**①否 + ②否**（15: 未被回退且不会覆盖远端后续提交）时才拷回，并在报告标注「未提交、已带上线」。
+  ⇒ 三者任一命中，**一律备份 WIP 到 `$HOME/.linmo-bak/rebuild-<TS>/wip-sources.tar.gz`（含 `deploy/.env*`）后走纯远端代码**，并在报告里给出一条恢复命令与「该特性已下线」的显式副作用说明。
   ⚠️ 有 cache 时**全量重建 5 镜像仅约 2m16s** ⇒ 判据模糊时宁可全量重建，别只挑「时间戳落后」的那几个。
 - 🔴 **⑤ 两个脚本数必须相等，且逐文件 md5 差异数必须为 0**（2026-10-06 立判据 / 2026-10-09 加固）：`pig/db/**/*.sql`
   新增**或改动**后，MySQL 镜像**不会**自动跟随（脚本是 `COPY` 进镜像的）⇒ 不重建就重置 = 建出**缺表、缺约束**
@@ -409,6 +483,12 @@ while read -r f; do [ -e "$f" ] && stat -f '%Sm %N' -t '%F %H:%M:%S' "$f"; done 
 **唯一直接证据 = 在「正在运行的容器」里找一个只在某个版本存在的字符串。**
 
 挑串原则：选源码里**新增/删除**过的、够独特的字面量当「DNA 探针」；并用**旧串必须消失**做反向验证。
+
+🔴🔴 **探针必须给「完整选择器 / 完整常量」，否则会假阳性到直接跳过重建**（2026-10-31 实测）：
+拿 `ops-project-detail` 当 pc-ui 探针得到 **4 命中**（该类名早已存在于别处），差点误判「镜像已是最新」；
+补成完整 CSS 选择器 `#linmo-b2b-mockup.ops-project-detail` 后才是真相：**0 命中 = 确实落后**。
+⇒ 规则：① CSS 探针必须带 `#`/`.` 前缀与相邻关系符；② 后端 class 探针用**完整类名**且优先选「本轮 `git diff --diff-filter=A` 新增的类」；
+③ **先凭存在型探针不能确认时，一定要再用删除型探针或 `index.html` mtime 交叉验证**。
 
 ```bash
 export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
@@ -588,6 +668,80 @@ docker images --format '{{.Repository}}:{{.Tag}}\t{{.ID}}' | grep linmo
   ```
   本轮据此**离线重建成功**了 `pig/db`（MySQL，152 个 initdb 脚本入镜像）。受「本机无 `python:3.11-slim`」限制，`python-ai` target 仍过不去；其余 target 本地 base 齐备即可跑通。
   ⚠️ 判据提醒：绕法只解决「能不能 build」，**"镜像是否已是当前源码"仍要单独判**（Created + 源码 mtime + 全 CACHED，见 §0.5）。
+
+---
+
+### 🔴 0.9 「容器全空」时怎么定拓扑 + 三种新判据（2026-10-29 实测）
+
+**① 起手先用网络判拓扑，别猜**：`docker ps -a` 与 `compose ls -a` **都空**（外部清理 / 引擎重启），但卷和镜像还在时：
+
+```bash
+docker network ls --format '{{.Name}}'
+#  有 deploy_backend、无 linmo-net  ⇒ **v1 一体化**（docker-compose-liyuying-v1.yml + 借私仓 deploy-mysql-1）
+#  有 linmo-net                      ⇒ dev 编排
+```
+v1 的 mysql 服务是注释掉的，必须先起 `deploy-mysql-1`：
+```bash
+cd deploy && TAG=268 docker compose --env-file .env.liyuying --env-file .env -f docker-compose.yml up -d mysql
+# ⚠️ deploy/.env 里 TAG 可能指向本地没有的私仓 tag（实测 .env 写 272、本机只有 268DB）⇒ 显式 TAG= 覆盖；
+#    卷 linmo-mysql-data 已有数据时**不会**触发 initdb，换小版本镜像安全
+```
+
+**② 「后端新代码已生效」的最快判据 = 直接打今日新增 Controller 的路由**
+比解 jar 找 class 快一个数量级：本轮 `OpsFeishuBriefController`（`@RequestMapping("/ops/ingest/matter-bot/brief")`）
+无参调用统一返 **400「缺少必填参数: connector」** ⇒ 路由 + 参数校验已装配，新代码确定在跑。
+若该路由返回 404 才是没生效；403 是权限点未授权（另一类问题，见 §2.5 ⑤）。
+
+**③ pig-boot 启动会「自动执行在线升级」，表数增长是预期，别当数据丢失**
+实测 up 后 1~2 分钟内自动建了 11 张表（`ops_feishu_brief_*` / `kb_binding` …）、+10 菜单、+2 `sys_job`
+⇒ `information_schema` 表数 299→310 属**预期**。判据：`select table_name,create_time from
+information_schema.tables where table_schema='pig' order by create_time desc limit 5;` —— `create_time`
+集中在 boot 启动后 1~2 分钟即自动升级；要看数据有没有丢，用 `ai_app_config` 的
+(总/活/enabled/有密钥) 四元组与既定基线比，别看表数。
+
+**④ 容器被外部整栈 destroy 的取证与恢复**：`docker events --since 15m | grep -E ' (kill|stop|destroy) '`
+若看到一次**连发**的 kill→stop→destroy（含 `network destroy`、mysql 一起没），且被 destroy 的是
+**随机名中间容器**（`agitated_cohen` 这类）⇒ 不是你的命令，是并行会话 / Docker Desktop GUI 清理。
+处置：镜像已构建好，**直接 `up -d` 恢复即可，不要二次 build**。
+
+### 🔴🔴 0.10 最坏情况：镜像 + 卷被一起清空（只剩 build cache）
+
+`docker system df` 显示 Images 0 / Local Volumes 0（连 `linmo-mysql-data` 都没了）⇒ **数据库已丢，必须从备份还原**。
+
+**① 先找备份，再动手**（`output/` 可能也被清掉，两个副本都看）：
+```bash
+ls -lt /Users/shan/work/linmo-pig-full/output/db-backup/*/all-databases.sql | head -3
+```
+
+**② 起 mysql**：私仓 `192.168.110.172:8443` 常年可能不可达（HTTP 000），此时用公共镜像手工起，
+字段与私仓编排对齐：
+```bash
+docker run -d --name deploy-mysql-1 --platform linux/arm64 \
+  --network deploy_backend --network-alias mysql -p 3306:3306 \
+  -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=pig -e MYSQL_USER=yule -e MYSQL_PASSWORD=yule123 \
+  -e TZ=Asia/Shanghai --restart unless-stopped -v linmo-mysql-data:/var/lib/mysql \
+  docker.m.daocloud.io/library/mysql:8.0 --lower_case_table_names=1
+```
+
+**③ 还原：只涜 3 个业务库，跳过 `mysql` 系统库**
+备份里含 `mysql`/`pig`/`pig_config`/`pig_dw`，但**没有 `CREATE USER`/`ALTER USER`** —— 覆写系统库会
+把新容器的 root 账号冲掉、直接锁死。正确做法：按 `-- Current Database:` 切片，每片补 dump 头
+（`/*!40101 SET NAMES utf8mb4 */` 等）与尾部 `COMMIT`，只执行 `pig`/`pig_config`/`pig_dw`，
+`pig_config`/`pig_dw` 若不存在先 `CREATE DATABASE`。
+
+**④ 还原后必做的收尾（否则启动就报错）**
+- 🔴 **`qrtz_*` 的 Java 序列化 BLOB 经字符集转换会损坏** ⇒ 启动报
+  `Couldn't obtain triggers for job: Error serializing trigger: OPS.<任务名>` + `任务初始化失败 jobId=xxxx`。
+  修法：**truncate 全部 `qrtz_*` 表 → 重启 pig-boot**，由 `sys_job` 重建运行态（实测 12 组，重启后 0 ERROR）。
+  这是标准动作，不要试图去修 BLOB。
+- **`modifiedCount > 0`**：恢复的 ledger 比文件旧。校验算法 = **文件 `sha256` hex**（`shasum -a 256`），
+  直接 `update sys_db_migration set checksum=…, file_size=…` 重登记即可。改判据：先看这两个脚本的
+  diff 是否只涉及幂等守卫 / 新建表 collation（运行时效果为零）再重登记，别盲目标 DONE。
+- 还原后立刻 `mysqldump --all-databases` 再备一份到 `output/db-backup/<时间>/`。
+
+**⑤ 镜像重建**：基础镜像全丢要重拉（`eclipse-temurin:17-jre` / `maven:3.9-eclipse-temurin-17` /
+`node:22-alpine` / `nginx:1.27-alpine` / `python:3.11-slim`），慢网实测 **约 40 分钟**，务必后台跑。
+可复现性可以用 `boot jar md5` 与上一轮对比（同源码应完全一致）。
 
 ---
 
@@ -816,9 +970,44 @@ $D exec -i linmo-mysql mysql -uroot -proot < output/db-backup/restore-ops-from-<
   A=/Users/shan/.workbuddy/skills/linmo-stack-rebuild-reset/assets/parse_dump.py
   python3 "$A" <备份>/all-databases.sql counts                      # → db.table<TAB>行数（136 行）
   python3 "$A" <备份>/all-databases.sql jobs                        # → job_id/status/params/cron/name
-  python3 "$A" <备份>/all-databases.sql apps                        # → ai_app_config 全列（stderr 打汇总）
+  python3 "$A" <备份>/all-databases.sql apps                        # ⚠️ 见下：本仓 dump 上恒坏，别用
   python3 "$A" <备份>/all-databases.sql ddl pig_dw ods_xdy_work      # → 带 USE 的 CREATE TABLE（补缺表用）
   ```
+- 🔴 **`parse_dump.py apps` 对本仓 dump 每行都吐表头（2026-10-29 复测，10-17 已记过一次仍在）** ⇒
+  需要 `ai_app_config` 逐行时改用 `output/db_restore_gen.py` 里的解析器（列序取自 dump 的 `CREATE TABLE`）。
+  🔴🔴 **2026-11-01 订正：`db_restore_gen.py` 里并没有 `parse_statements / dump_columns / split_tuple`**（旧文档写错），
+  现有 API 只有 `iter_statements / create_columns / split_tuples / split_tuple_values`，且有**两个静默陷阱**：
+  ① `iter_statements()` 只认 `line.startswith('INSERT INTO \`')`，而 mysqldump 实际输出 `INSERT  IGNORE INTO`
+     （双空格，`innodb_*_stats` 那类）与**无列名的位置化** `INSERT INTO \`t\` VALUES (…)` ⇒ 用它筛表会漏；
+  ② `split_tuples(stmt)` 内部自己找 ` VALUES `，**必须传整条语句**；只传 body（`stmt[k+6:]`）会**返回空列表且零报错**
+     ⇒ 解析结果 0 行、看着像「备份里没数据」。正确写法（可直接复用）：
+  ```bash
+  python3 - <<'PY'
+  import importlib.util, json, re
+  spec=importlib.util.spec_from_file_location('g','output/db_restore_gen.py')
+  m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+  lines=open('<备份>/all-databases.sql',encoding='utf-8',errors='replace').read().split('\n')
+  cols=None
+  for i,l in enumerate(lines):
+      if l.startswith('CREATE TABLE `ai_app_config`'):
+          buf=l; j=i
+          while not buf.rstrip().endswith(';'): j+=1; buf+='\n'+lines[j]
+          cols=m.create_columns(buf); break
+  stmt=next(l for l in lines if re.match(r'INSERT\s+(IGNORE\s+)?INTO `ai_app_config`', l))
+  rows=[m.split_tuple_values(t) for t in m.split_tuples(stmt)]   # ← 传整条语句
+  ci={c:i for i,c in enumerate(cols)}
+  print('cols',len(cols),'rows',len(rows))
+  print('四元组 total/live/enabled/key',
+        len(rows),
+        sum(1 for r in rows if r[ci['del_flag']]=="'0'"),
+        sum(1 for r in rows if r[ci['enabled']]=="'1'"),
+        sum(1 for r in rows if r[ci['api_key_cipher']]!='NULL'))
+  PY
+  ```
+  期望形如 `cols 25 / rows 98 / 98·79·84·62`（2026-11-01 实测口径）。
+- 🔴 **别用 `mysql -e "select concat(...,char(9),...)"` 造 TSV**（2026-10-29 实测静默出 0 行）：
+  `docker exec` 里再套一层引号 + `char(9)` 极易被截断。正解 = **SQL 落文件 + `docker exec -i ... < file`**
+  取「一行一列」明细，再在宿主 python 里组装成 `table<TAB>cols`。
 - 🔴🔴 **「现库 = 0 行」只是第一遍兜底，必须再做「逐表行数全量比对」**（2026-10-10 实测漏 4 张 / 155 行）：
   种子已提供**部分行**的表，重置后**非 0** ⇒ 被 0 行判据漏掉，实际比备份少：
   `ai_app_config` 49↔**101**、`ops_connector` 18↔**21**、`ops_ext_task` 224↔**321**、`ops_ext_daily_report` 21↔**27**。
@@ -1006,6 +1195,13 @@ python3 tools/seed_ops_simu.py --domain market --accounts 27
 `ai_app_config_snapshot`（用户点「快照与回滚」攒下来的）**完全不在种子**里 ⇒ 删卷即丢。§2.5 ① 的表清单没列它们，
 **必须单独补**：
 
+🔴🔴 **`ai_app_config` 永远进不了「现 < 备份」待补清单，必须无条件单独比对**（2026-10-29 实测）：
+本轮重置后 `ai_app_config` 行数 **95 == 备份 95** ⇒ ①的差集判据完全看不见它，但真实状态是
+**`enabled=1` 仅 23（备份 84）、`api_key_cipher` 有值 0（备份 75）** —— 种子行数与备份行数凑巧相等，密钥与启用位全丢。
+⇒ 每轮收尾都要跑一次「按 `app_code` 的 `(del_flag, enabled, has_key)` 四元组多重集比对」，**不看行数**；
+重复 app_code（一活一删）走「删该 app_code 全部行 → 从备份逐行重建（剔 id）」，唯一键走 UPDATE。
+本轮实测终态 95 / 活 71 / enabled 84 / key 75，四元组缺 0 多 0。
+
 ```bash
 python3 tools/restore_tables_from_backup.py \
   --backup output/db-backup/<TS>/all-databases.sql \
@@ -1137,7 +1333,18 @@ Java 的 `\u` 是 **Unicode 转义**，在**词法分析之前**处理 —— �
   `[\x{4e00}-\x{9fa5}]`（`\x{...}` 不被预处理），**别写** 裸 `\u4e00`。
 - 改完全文件自查：`grep -n '\\u' <file>` 的命中应只剩合法的 `\uXXXX`。
 
-**② Python 预演 Java `\b` 文本清洗时必须加 `re.ASCII`**
+**② 启动报 `Failed to instantiate … No default constructor found` ⇒ 多构造器缺 `@Autowired`（2026-10-30 实测）**
+症状：`up -d --force-recreate` 后 health 卡 `starting` 200s+，日志连续多次
+`UnsatisfiedDependencyException … Error creating bean with name 'xxxService' … No default constructor found`。
+根因：该类有**两个构造器**（常见形态 = 「少参生产构造器」+「多参测试构造器带 `Clock`」）且**都没有 `@Autowired`**，
+Spring 无法确定候选 ⇒ 走无参 `instantiateBean` 分支直接失败。**编译过 + 单测全绿也照样崩**（单测是 `new` 出来的）。
+修法：给**生产构造器加 `@Autowired`**（仓内既有范式见 `MasterPublicCheckpointService`）。
+🔴 扫同类隐患时：`@Autowired` 在仓内**大量写成全限定名** `@org.springframework.beans.factory.annotation.Autowired`，
+用 `'@Autowired' in src` 判定会**全部漏判**（本轮 5 个候选里 4 个其实已修好）。正确扫描条件是
+`'beans.factory.annotation.Autowired' in src`，或直接在 `grep -rn 'class\('` 结果里人工看注解行。
+另：带 `Clock` 的那个构造器永不参与注入（仓内**没有 `Clock` @Bean**）⇒ 给它加注解会直接 `NoSuchBeanDefinition`。
+
+**③ Python 预演 Java `\b` 文本清洗时必须加 `re.ASCII`**
 `\b` / `\w` 的**字符集不同**：Java `\b` 是**纯 ASCII** 词边界，Python 3 默认 `\w` **含中文** ⇒
 英文与中文粘连（如 `远程dev并`）时 Python 认为 `dev` 仍在「词内」⇒ **漏删**，Java 则照删。
 两级预演会给出**假一致**结论。**预演脚本一律** `re.compile(pat, re.ASCII)`，或把边界显式写成
@@ -1199,6 +1406,44 @@ bg 任务的 stdout 落盘文件。
 本机到 `mirrors.aliyun.com` 实测约 **70 kB/s**（2026-10-26：构建 929s 才进 `Installing collected packages`）⇒
 若本批 python-ai **只改了 Dockerfile 的构建期源、应用代码零改动**，正确做法是**不重建**（`up -d --force-recreate --no-deps python-ai`
 用现存镜像即可），并在报告里如实说明；要用新镜像就换时段或 `--build-arg PIP_INDEX_URL=<更快的源>`。
+
+---
+
+## 2.10 🔴 增量脚本落库的两个必踩坑（2026-10-29 实测）
+
+**① 跨表 collation 撞 `ERROR 1267`（新表写死 general_ci）**
+`zz_20261027_ai_memory_workspace.sql` 新建的 7 张表 DDL 结尾带 `COLLATE=utf8mb4_general_ci`，而 `pig` 库默认与**所有既有表**是
+`utf8mb4_0900_ai_ci` ⇒ 紧随其后的 `zz_20261027_ai_memory_workspace_unified.sql` 第 9 行
+（`ai_memory_audit a JOIN ai_user_memory_profile p ON a.tenant_id=p.tenant_id`）直接 1267。
+危害不止一句：新表↔既有表的任何 JOIN 在运行时同样炸，**全新 initdb 也必崩**。
+
+```sql
+-- 先定位：库默认 vs 表实际
+SELECT DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='pig';
+SELECT table_name,column_name,collation_name FROM information_schema.columns
+ WHERE table_schema='pig' AND table_name LIKE 'ai_memory%' AND collation_name='utf8mb4_general_ci';
+```
+修法：**不加新的"补丁式"改写，也不改已执行脚本**；新增一个 `zz_*_collation_fix.sql` 增量，用信息模式守卫的
+`MODIFY … COLLATE utf8mb4_0900_ai_ci` 逐列对齐（幂等），**慎重处理两类例外**：
+- 刻意声明的 `CHARACTER SET ascii COLLATE ascii_bin` 列（`subject_key`/`content_hash`/`dedup_key`/`action_ref`/`authorization_hash`）必须**保持 ascii_bin**，别顺手改成 0900；
+- **FULLTEXT 索引列 ≤ MySQL 8 拒绝 `MODIFY`**（`ERROR 1283 Column 'x' cannot be part of FULLTEXT index`）。这类列（如
+  `ai_memory_version.l0/l1/l2`、`ai_memory_topic.name/alias_text`）**故意保留 general_ci**，因为 `MATCH AGAINST` 不参与跨表排序规则比较。
+- 生成动态 DDL 时：`SET @x=IF(...,'SELECT 1','ALTER …')` 里的 DDL 字符串如果含**默认值单引号**（如 `DEFAULT 'active'`），
+  必须把 `'` 双写成 `''`，否则 `ERROR 1064 near 'active''`。
+
+**② `gen_pig_merged.py` 的拓扑排序会把"注释里提到的文件名"当依赖**
+它扫每个脚本**头部任意位置出现的同组文件名**（`PREREQ_SCAN_BYTES`）→ 有就排到那个文件之后。所以新脚本头部的说明文字里
+**不要写出同组另一个脚本的全名**（哪怕只是举例/追责），否则 seq 会被推到它后面，全新 initdb 仍按错的顺序跑。
+判据：改完 run 一次生成器，直接看 `pig/merged/manifest.tsv` 里三行的 seq 是否满足 `前置 → 本文 → 后继`。
+
+**③ 施完立刻验证"库内效果"，别看退出码**
+本轮 `zz_20261024_ops_industry_unified_collection.sql` 返回的是几段结果集（脚本自带诊断 SELECT），看起来像报错其实是成功；
+而真正失败的那个是**中途 abort、后面的语句全没跑**。判据一律是「业务效果在不在」：
+```sql
+SELECT name FROM sys_menu WHERE menu_id=202610270101;              -- 菜单改名生效?
+SELECT quota_bytes FROM ai_user_memory_profile WHERE owner_id=1;   -- 数值型增量生效?
+```
+另：`sys_db_migration` 用 `create_time`（无 `executed_at`），登记要带 `script_name/checksum/file_size/status`。
 
 ---
 
@@ -1304,6 +1549,16 @@ PY
 `经营中心` 下含 `/ops/**` 15+ 项（总览/报告/项目/智能体/灵猫AI/事项/分析/市场/行业/知识库/数据接入…）。
 > 2026-10-09 实测基线已变为 **顶级 8 / 节点 142**（dev 合并带入新菜单）⇒ 该数随种子增长，**判据是「较上轮基线的增长可用当轮合并解释」，而非固定值**。
 
+> 🔴🔴 **2026-11-01 订正：清菜单缓存后「顶级数跳变」几乎都不是回归**。`gl:menu_details*` 的 TTL=-1（永不过期），
+> 历史快照可留存**数天** ⇒ 过去长期报的「顶级 8」其实是过期快照；本轮清掉缓存后重算为 **顶级 12**，
+> 与库里 `parent_id=-1` 的 12 个顶级目录、`sys_role_menu` 中 role 1 持有 **495/496** 授权完全吻合。
+> ⇒ **交叉验证必做**（别直接报回归）：
+> ```bash
+> docker exec deploy-mysql-1 sh -c 'mysql -uroot -proot -N -B pig -e \
+>   "select count(*) from sys_menu where parent_id=-1 and del_flag=0;"'   # 应等于 API 的顶级数
+> ```
+> 同理「节点数 ±1~2」多半是快照口径差异，先看 `sys_menu` 活行数与 role 1 授权数再下结论。
+
 > ⚠️ 旧记录写的「顶级 7 / 节点总数 133」**勿再引用**（口径不明，实测复现不出）。
 > ⚠️ 也**别拿库行数跟 API 节点数比**：`sys_menu` 未删 380 行（`menu_type` 0=125 / 1=255，`visible='1'` 隐藏 364），
 > API 只返回可构树的那部分 ⇒ 两个数字本来就不该相等。
@@ -1313,6 +1568,10 @@ PY
 
 ### 🔴 坑
 - 路径别叠 `/admin/admin/...`，context-path 已经吃掉一层。
+- 🔴 **KB 分页探针口径已于 2026-10-31 变更**：`GET /admin/kb/document/page` **已不存在**（`KbDocumentController` 只剩
+  `/libraries` 与 `/library/{bindingId}/…`）。旧脚本探针它会被路由到别的 handler，返 **400「参数 docId 类型不正确」**
+  ⇒ **不是回归**。验证 KB 一律改用 `/admin/kb/document/libraries`（应 200）；其余常用：`/kb/stat/daily`、
+  `/kb/personal-usage/page`、`/kb/review/todo`、`/ai/user/memory/profile`、`/ops/agent/industry/panel`。
 - 默认凭据：`admin / 123456`；client 用 `test:test`（Basic）。
 - sandbox 内 curl 走本机 IP 要加 `--noproxy '*'`。
 - python-ai 启动后 30~90s 内 `/health` 里 `config.source=fallback` / `ConnectError` 是**启动竞态**（boot 还没就绪），自愈后变为 `source=pig`，不是故障。⚠️ 2026-10-10 实测**约 60s 才转 pig**（旧记录写「30s 后自愈」偏乐观）⇒ 启动后立刻复验见 fallback 属正常，**等 60~90s 再下结论**。

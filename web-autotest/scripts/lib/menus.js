@@ -151,7 +151,12 @@ async function pageProblems(page, M) {
     const out = [];
     // 只在正文开头、或整段正文很短时才把「404」这种词当错误页，免得表格里的数字误报
     const head = text.slice(0, 200);
-    const hit = errorTexts.find(t => (text.length < 300 ? text : head).includes(t));
+    const scope = text.length < 300 ? text : head;
+    // 「403/404/500」这类纯数字必须独立成数才算错误码：否则行政区划的编码 500000、
+    // 分页总数 1500 都会被子串命中，恒假红（2026-10-29 实证）
+    const hit = errorTexts.find(t => /^\d+$/.test(t)
+      ? new RegExp(`(?<![\\d.])${t}(?![\\d.])`).test(scope)
+      : scope.includes(t));
     if (hit) out.push({ level: 'fail', text: `页面显示「${hit}」：${head.slice(0, 80)}` });
     const toasts = (window.__autotestToasts || []).splice(0);
     if (toasts.length) out.push({ level: 'fail', text: `弹出错误提示：${[...new Set(toasts)].join(' / ').slice(0, 150)}` });

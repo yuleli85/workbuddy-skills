@@ -99,6 +99,24 @@ docker exec linmo-mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" pig -e \
 `job_log_status=1` = 失败（`OpsDailyBriefJob.fail()` 返回 `"1"`，原因在应用日志 `log.warn`）。
 **注意**：容器 `--force-recreate` 后 `docker logs` 会丢历史（容器内 `/app/logs` 非独立卷）。
 
+## L5 · 项目智能体「数据更新失败 / 来源表不存在」横幅（feishu-project 专项）
+
+页面文案 `SOURCE_TABLE_UNAVAILABLE`（"来源表不存在或当前应用没有读取权限"）不是查表得出的，
+而是 `OpsProjectRefreshService.failureCode()` 对最新一条 TASK_SYNC 日志的 fail_reason 做关键词归类：
+含 `1254041`（飞书 bitable「数据不存在/应用不可见」）⇒ 该码。排查链：
+
+1. 数据源：`SELECT data_sources FROM ops_agent WHERE agent_code='project'`（缺省回落 zentao）。
+2. 最新日志：`ops_sync_log WHERE connector_code=<源> AND sync_type='TASK_SYNC' ORDER BY id DESC`。
+3. 正式链路三件套是否齐：`ops_connector_credential`（connector_id=306021）app_id/app_secret 非空；
+   `sys_job 9613` job_status 非 3（3=暂停）；应用已被加为该多维表格的协作者（缺这个就是 1254041）。
+4. **快速恢复数据**：本机 lark-cli 用户身份通道 `python tools/collect_feishu_project_via_lark.py --push`
+   （--dry 先验 5 表可读；需 httpx+cryptography，装在 `/Users/shan/.workbuddy/binaries/python/envs/default`），
+   落库走 `/admin/internal/ops/project-source-snapshot`，批次号 `-LARK` 结尾。
+5. 验收：Playwright 开 `/#/ops/agent/index?agentCode=project`（8890），断言横幅出现
+   「最后成功同步」且 `GET /admin/ops/project/sync-status` 返回 `freshness=FRESH, failureCode=null`。
+
+注意：库被重建/快照回灌后，横幅可能展示**历史**失败日志（并非实时故障）——先看日志时间戳是不是旧的。
+
 ## 验收口径（改完必跑）
 1. `circuit.state=closed`；2. 分时段采集成功率 ≥ 90%；3. daily 失败源当日尝试 ≈ 1 次（不再是 100+）；
 4. 日报类任务 `job_log_status=0` 且 `ops_ext_daily_report` 有当日行。

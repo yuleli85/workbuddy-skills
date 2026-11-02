@@ -17,6 +17,33 @@ agent_created: true
 | `tools/dify_push_graph.py` | 推 DSL 到 draft（会覆盖画布，慎用） |
 | `tools/reset_dify_password.py` | 忘记口令 / 被锁时的恢复口径（PBKDF2 格式写死在这里） |
 
+## 有页面了：扩展配置 →「工作流环境变量」（2026-10-27 起）
+
+先别急着敲命令行。**同名变量跨应用统一**已有界面，优先用页面：
+
+- 入口：PIG 管理端/经营中心 → **扩展配置 → 工作流环境变量**（`views/ai/config/DifyEnvSync.vue`，第 5 个页签）。
+- 链路：`PIG /admin/ai/workflow-env/{matrix,apply}`（`ai_config_view` / `ai_config_env_apply`）
+  → `python-ai /internal/v1/dify/workflow-env/{matrix,apply}` → Dify 控制台。
+- 能力：按变量名聚合、标出值漂移与类型不一致、secret 只回长度+sha8、
+  **先预检（dryRun）再下发**、`patch:true` 只动该变量、默认同时发布。
+- 页面用的读接口是 `GET /apps/{id}/workflows/draft/environment-variables`（**secret 回明文**），
+  所以能拿到 `id` / `value_type` 用于 patch；不要改读 `/workflows/draft`（那里 secret 是 20 个星号）。
+  🔴 该接口的响应形状是 **`{"items": [...]}`** —— 既不是 `{"data": [...]}` 也不是裸数组，
+  按错形状解析会静默得到「0 个应用有环境变量」的假结论（2026-10-27 实际踩过）。
+- 只在**已有该变量**的应用上写，不会自动新建变量。
+- 🔴 **PIG 侧写控制器时，path 不要带 `/internal/v1`**：`PythonAiClient.buildRequest()` 是
+  `props.baseUrl + path` 裸拼，而容器里 `PYTHON_AI_BASE_URL=http://linmo-python-ai:8090/internal/v1`
+  已含前缀。写成 `/internal/v1/dify/workflow-env/matrix` 会变成 `.../internal/v1/internal/v1/...` ⇒
+  PIG 报 `python-ai-service error: 404: Not Found`，但**直连 python-ai 同一路径是 200 有数据**，
+  极易误判成「python 侧没部署」。既有可用调用（`AiAppConfigController`）传的是
+  `/sync/dify-apps`、`/sync/dify-api-keys`，都**不带前缀** —— 以既有调用为准，
+  别信 `PythonAiClient.getJson` 那段写着 `/internal/v1/kb/reconcile` 的 javadoc（是错的）。
+- 🔴 起服务时 `--no-deps` 只换目标服务的镜像可以，但**基础中间件必须先确认在跑**：
+  v1 编排 `pig-gateway depends_on redis`，Redis 没起时后端会反复重启、health 卡 `starting`
+  300s+，日志真因是 `UnknownHostException: Failed to resolve 'linmo-redis'`
+  （Redisson 建 Bean 失败），不是「启动慢」。
+- 下面这些命令行工具仍然有效，适合脚本化/批量/无界面场景；两者共用同一份控制台凭据。
+
 ## ⚠️ 先判：这里该不该用 env 同步
 
 本 skill 只解决「怎么改、怎么让 secret 生效」的**机制**问题，不代表架构上应该把凭据放在工作流环境变量里。
@@ -57,6 +84,16 @@ Dify 的 `workflows` 表里同一应用有**两行**：`version='draft'` 与 `ve
 python3 tools/dify_workflow_publish.py --app-id <uuid> --force      # 改完必须发布
 ```
 > `--force` 不可省：不带时它按 **graph** 规范化比对，只改了环境变量（graph 没变）会被判定「无需发布」而跳过。
+>
+> 🔴 **`dify_workflow_publish.py` 依赖本机 `linmo-python-ai` 容器**（`docker exec` 进容器跑 asyncpg 改库）。
+> 本机 Docker 没起 / 容器不存在时它直接 `FileNotFoundError: 'docker'`。**兜底 = 控制台发布接口**（2026-10-29 实测有效，
+> 等价于页面上点「发布」，无需 docker）：
+> ```python
+> # 复用 dify_push_graph.Console 登录后（同坑 1 的代理豁免）：
+> c.call("POST", f"/apps/{app_id}/workflows/publish", {})   # HTTP 200 即发布成功
+> ```
+> 发布后验收：`GET /apps/{id}/workflows?limit=10&page=1` 的响应形状是 **`{"items": [...]}`**（不是裸对象），
+> 过滤 `version != 'draft'` 按 `created_at` 取最新，核对其中 `environment_variables` 的 URL 已是新值。
 > 发布后 `apps.workflow_id` 会变，**记下旧值**用于回滚。
 
 ### 坑 3：secret 无法用 psql 明文改

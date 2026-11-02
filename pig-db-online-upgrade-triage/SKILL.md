@@ -19,21 +19,28 @@ agent_created: true
 
 ## 1. 取现场（三件事）
 
+🔴 **环境口径（2026-10-28 实测校准）**：
+- **docker 不在会话 PATH** —— 一律用绝对路径 `/usr/local/bin/docker`；
+- **MySQL 容器名是 `deploy-mysql-1`**（旧名 `linmo-mysql` 已不存在），且 3306 **不映射宿主机**，只能 `docker exec` 进容器查；
+- **Redis 容器 `linmo-redis` 映射宿主机 6380**（`deploy/.env.aqiang` 里 `HOST_REDIS_PORT=6379` 是旧值）—— 跑 `tools/pig_login.py` 前要 `HOST_REDIS_PORT=6380` 覆盖，否则 Connection refused；
+- token 失效的刷新：`python tools/pig_login.py`（需要 `python-dotenv` + `redis` 包，装进 WorkBuddy venv `/Users/shan/.workbuddy/binaries/python/envs/default/`）；
+- **mysqldump 全量快照（`-- MySQL dump` 开头，如 pig/pig_config/pig_dw20261015.sql）被扫描阶段主动排除**（`DbUpgradeService` 的 `MYSQLDUMP_HEADER` 防护）：不进 pending/scripts 集合、不执行、不会 MODIFIED 重跑。⇒ **接口 scripts 数 < jar 内 sql 数 = 正常有快照被排除**，别当成丢脚本；若用户想把这类快照「标记为已执行」，先查 `sys_db_migration`（initdb-loader 可能已登记 SUCCESS），多半已处于目标状态。
+
 ```bash
 cd <repo>
 # ① 待执行三态（head 看 summary 即可）
-TOK=$(cat output/pig-token.txt)      # 失效则用 tools/ 里的登录脚本重新取
-curl -s -H "Authorization: Bearer $TOK" -H "TENANT-ID: 1" \
+TOK=$(cat output/pig-token.txt)      # 失效则按上方环境口径用 tools/pig_login.py 重新取
+curl -s --noproxy '*' -H "Authorization: Bearer $TOK" -H "TENANT-ID: 1" \
   http://localhost:9999/admin/db/upgrade/pending > /tmp/pending.json
 
 # ② 失败行 + 报错原文
-PW=$(grep -E '^MYSQL_ROOT_PASSWORD=' deploy/.env.dev | cut -d= -f2-)
-docker exec -e MYSQL_PWD="$PW" linmo-mysql mysql -uroot -B pig -e \
+PW=$(grep -E '^MYSQL_ROOT_PASSWORD=' deploy/.env.aqiang | cut -d= -f2-)   # .env.dev 可能缺，.env.aqiang 为本机现行
+/usr/local/bin/docker exec -e MYSQL_PWD="$PW" deploy-mysql-1 mysql -uroot -B pig -e \
  "SELECT script_name,status,file_size,LEFT(error_msg,300),create_time,executed_by
   FROM sys_db_migration WHERE status<>'SUCCESS'"
 
 # ③ 时间线（区分「基线登记」与「真执行」）
-docker exec -e MYSQL_PWD="$PW" linmo-mysql mysql -uroot -B pig -e \
+/usr/local/bin/docker exec -e MYSQL_PWD="$PW" deploy-mysql-1 mysql -uroot -B pig -e \
  "SELECT DATE(create_time) d,status,COUNT(*) FROM sys_db_migration GROUP BY d,status ORDER BY d;"
 ```
 
